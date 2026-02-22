@@ -40,12 +40,12 @@ export function Header({ title, subtitle, showMonthPicker = false, showYearPicke
   }
 
   return (
-    <div className="flex items-center justify-between border-b bg-card px-8 py-5">
+    <div className="flex items-center justify-between border-b bg-card/80 backdrop-blur-sm px-8 py-5 sticky top-0 z-10">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {showMonthPicker && (
           <Select
             value={String(currentMonth)}

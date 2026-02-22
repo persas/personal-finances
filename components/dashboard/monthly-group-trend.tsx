@@ -13,6 +13,14 @@ function fmt(n: number): string {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+const tooltipStyle = {
+  background: 'var(--chart-tooltip-bg)',
+  border: '1px solid var(--chart-tooltip-border)',
+  borderRadius: 10,
+  color: 'var(--foreground)',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+};
+
 interface Props {
   data: Array<{ month: number; [key: string]: number }>;
 }
@@ -20,7 +28,6 @@ interface Props {
 export function MonthlyGroupTrend({ data }: Props) {
   if (!data || data.length === 0) return null;
 
-  // Filter to months with any spending
   const chartData = data
     .filter(d => {
       const total = BUDGET_GROUPS.reduce((sum, g) => sum + (d[g] || 0), 0);
@@ -41,14 +48,28 @@ export function MonthlyGroupTrend({ data }: Props) {
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
           <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-            <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `${fmt(v)}€`} />
+            <XAxis
+              dataKey="name"
+              tick={{ fill: 'var(--chart-tick)', fontSize: 12 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
+              tickFormatter={v => `${fmt(v)}\u20AC`}
+              axisLine={false}
+              tickLine={false}
+            />
             <Tooltip
-              contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
-              formatter={(value: number | undefined, name: string | undefined) => [`${fmt(value ?? 0)}€`, name ?? '']}
+              contentStyle={tooltipStyle}
+              formatter={(value: number | undefined, name: string | undefined) => [`${fmt(value ?? 0)}\u20AC`, name ?? '']}
             />
             <Legend
-              formatter={(value: string) => <span className="text-xs text-muted-foreground">{value}</span>}
+              iconType="circle"
+              iconSize={8}
+              formatter={(value: string) => (
+                <span className="text-xs text-muted-foreground ml-1">{value}</span>
+              )}
             />
             {[...BUDGET_GROUPS].reverse().map(group => (
               <Area

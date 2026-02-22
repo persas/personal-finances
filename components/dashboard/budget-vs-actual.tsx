@@ -1,7 +1,6 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableBody,
@@ -17,6 +16,21 @@ function fmt(n: number): string {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function ColoredProgress({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="h-2 w-full rounded-full bg-muted">
+      <div
+        className="h-full rounded-full transition-all duration-500"
+        style={{
+          width: `${Math.min(value, 100)}%`,
+          backgroundColor: color,
+          opacity: 0.85,
+        }}
+      />
+    </div>
+  );
+}
+
 interface Props {
   groups: BudgetGroupSummary[];
   lines: BudgetLineSummary[];
@@ -30,7 +44,7 @@ export function BudgetVsActual({ groups, lines }: Props) {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Group summary cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {groups.map(g => {
             const pct = g.budget > 0 ? Math.min((g.actual / g.budget) * 100, 100) : 0;
             const isOver = g.delta > 0;
@@ -38,18 +52,24 @@ export function BudgetVsActual({ groups, lines }: Props) {
             return (
               <div
                 key={g.group}
-                className="rounded-lg border p-4 text-center"
+                className="relative overflow-hidden rounded-xl border p-4"
               >
-                <p className="text-xs font-medium uppercase tracking-wider" style={{ color }}>
-                  {g.group}
-                </p>
-                <p className={`mt-2 text-xl font-bold ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-                  {fmt(g.actual)}€
-                </p>
-                <Progress value={pct} className="mt-3 h-1.5" />
-                <p className={`mt-2 text-xs font-semibold ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-                  {g.delta >= 0 ? '+' : ''}{fmt(g.delta)}€ vs {fmt(g.budget)}€
-                </p>
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-1"
+                  style={{ backgroundColor: color }}
+                />
+                <div className="pl-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color }}>
+                    {g.group}
+                  </p>
+                  <p className={`mt-2 text-xl font-bold ${isOver ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {fmt(g.actual)}<span className="text-sm font-semibold opacity-70">&euro;</span>
+                  </p>
+                  <ColoredProgress value={pct} color={color} />
+                  <p className={`mt-2 text-xs font-semibold ${isOver ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {g.delta >= 0 ? '+' : ''}{fmt(g.delta)}&euro; vs {fmt(g.budget)}&euro;
+                  </p>
+                </div>
               </div>
             );
           })}
@@ -75,10 +95,11 @@ export function BudgetVsActual({ groups, lines }: Props) {
                 if (line.group !== currentGroup) {
                   currentGroup = line.group;
                   const groupData = groups.find(g => g.group === line.group);
+                  const groupColor = getBudgetGroupColor(line.group);
                   rows.push(
                     <TableRow key={`grp-${line.group}`} className="bg-muted/50">
-                      <TableCell colSpan={6} className="font-bold" style={{ color: getBudgetGroupColor(line.group) }}>
-                        {line.group} — Budget: {fmt(groupData?.budget || 0)}€ | Actual: {fmt(groupData?.actual || 0)}€
+                      <TableCell colSpan={6} className="font-bold" style={{ color: groupColor }}>
+                        {line.group} — Budget: {fmt(groupData?.budget || 0)}&euro; | Actual: {fmt(groupData?.actual || 0)}&euro;
                       </TableCell>
                     </TableRow>
                   );
@@ -86,24 +107,28 @@ export function BudgetVsActual({ groups, lines }: Props) {
                 const pct = line.budget > 0 ? Math.min((line.actual / line.budget) * 100, 200) : 0;
                 const isOver = line.delta > 5;
                 const isUnder = line.delta < -5;
+                const groupColor = getBudgetGroupColor(line.group);
                 rows.push(
                   <TableRow key={`${line.group}-${line.line}`}>
                     <TableCell className="pl-6">{line.line}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">{fmt(line.budget)}€</TableCell>
-                    <TableCell className="text-right font-mono text-sm font-semibold">{fmt(line.actual)}€</TableCell>
-                    <TableCell className={`text-right font-mono text-sm font-semibold ${isOver ? 'text-red-400' : isUnder ? 'text-green-400' : 'text-muted-foreground'}`}>
-                      {line.delta >= 0 ? '+' : ''}{fmt(line.delta)}€
+                    <TableCell className="text-right font-mono text-sm">{fmt(line.budget)}&euro;</TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold">{fmt(line.actual)}&euro;</TableCell>
+                    <TableCell className={`text-right font-mono text-sm font-semibold ${isOver ? 'text-red-600 dark:text-red-400' : isUnder ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                      {line.delta >= 0 ? '+' : ''}{fmt(line.delta)}&euro;
                     </TableCell>
                     <TableCell>
-                      <Progress value={Math.min(pct, 100)} className="h-2" />
+                      <ColoredProgress
+                        value={Math.min(pct, 100)}
+                        color={isOver ? '#ef4444' : groupColor}
+                      />
                     </TableCell>
                     <TableCell>
                       {line.actual === 0 && line.budget > 0 ? (
                         <span className="text-xs text-muted-foreground">N/A</span>
                       ) : isOver ? (
-                        <span className="text-xs font-semibold text-red-400">Over</span>
+                        <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">Over</span>
                       ) : isUnder ? (
-                        <span className="text-xs font-semibold text-green-400">Under</span>
+                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">Under</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">On budget</span>
                       )}

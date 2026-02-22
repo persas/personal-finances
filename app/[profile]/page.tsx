@@ -8,7 +8,6 @@ import { BudgetVsActual } from '@/components/dashboard/budget-vs-actual';
 import { CategoryDonut } from '@/components/dashboard/category-donut';
 import { SpendingBar } from '@/components/dashboard/spending-bar';
 import { IncomeVsExpenses } from '@/components/dashboard/income-vs-expenses';
-import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, BarChart3 } from 'lucide-react';
 import type { DashboardData } from '@/lib/types';
 
@@ -57,7 +56,9 @@ export default function DashboardPage({ params }: { params: Promise<{ profile: s
           showMonthPicker
         />
         <div className="flex flex-col items-center justify-center p-20 text-center">
-          <BarChart3 className="mb-4 h-16 w-16 text-muted-foreground/30" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
+            <BarChart3 className="h-8 w-8 text-muted-foreground" />
+          </div>
           <h2 className="text-xl font-semibold">No data for {MONTHS[month]} {year}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Upload a bank statement CSV to get started.
@@ -75,21 +76,13 @@ export default function DashboardPage({ params }: { params: Promise<{ profile: s
         showMonthPicker
       />
 
-      <div className="space-y-6 p-8">
-        {/* KPI Cards */}
+      <div className="space-y-6 p-6 lg:p-8">
         <KPICards data={data.kpis} />
 
-        {/* Budget vs Actual */}
         <BudgetVsActual
           groups={data.budgetComparison.groups}
           lines={data.budgetComparison.lines}
         />
-
-        {/* Charts */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <CategoryDonut data={data.categoryBreakdown} />
-          <SpendingBar data={data.categoryBreakdown} />
-        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <IncomeVsExpenses
@@ -97,7 +90,10 @@ export default function DashboardPage({ params }: { params: Promise<{ profile: s
             totalExpenses={data.kpis.totalExpenses}
             netSavings={data.kpis.netSavings}
           />
+          <CategoryDonut data={data.categoryBreakdown} />
         </div>
+
+        <SpendingBar data={data.categoryBreakdown} />
       </div>
     </div>
   );

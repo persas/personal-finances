@@ -9,6 +9,14 @@ function fmt(n: number): string {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const tooltipStyle = {
+  background: 'var(--chart-tooltip-bg)',
+  border: '1px solid var(--chart-tooltip-border)',
+  borderRadius: 10,
+  color: 'var(--foreground)',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+};
+
 export function SpendingBar({ data }: { data: CategoryTotal[] }) {
   const chartData = data.slice(0, 10).map(d => ({
     name: d.category.length > 18 ? d.category.slice(0, 16) + '...' : d.category,
@@ -23,28 +31,33 @@ export function SpendingBar({ data }: { data: CategoryTotal[] }) {
         <CardTitle className="text-sm">Top Spending Categories</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={320}>
           <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
             <XAxis
               type="number"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
-              tickFormatter={v => `${v}€`}
+              tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
+              tickFormatter={v => `${v}\u20AC`}
+              axisLine={false}
+              tickLine={false}
             />
             <YAxis
               type="category"
               dataKey="name"
               width={130}
-              tick={{ fill: '#cbd5e1', fontSize: 11 }}
+              tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
             />
             <Tooltip
-              contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
-              formatter={(value: number | undefined) => [`${fmt(value ?? 0)}€`, '']}
+              contentStyle={tooltipStyle}
+              formatter={(value: number | undefined) => [`${fmt(value ?? 0)}\u20AC`, '']}
               labelFormatter={(label) => {
                 const item = chartData.find(d => d.name === String(label));
                 return item?.fullName || String(label);
               }}
+              cursor={{ fill: 'var(--chart-grid)', opacity: 0.5 }}
             />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
+            <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18}>
               {chartData.map((entry, i) => (
                 <Cell key={i} fill={entry.fill} />
               ))}

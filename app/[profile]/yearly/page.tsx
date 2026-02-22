@@ -3,7 +3,6 @@
 import { useEffect, useState, use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
-import { Card, CardContent } from '@/components/ui/card';
 import { KPICards } from '@/components/dashboard/kpi-cards';
 import { CategoryDonut } from '@/components/dashboard/category-donut';
 import { SpendingBar } from '@/components/dashboard/spending-bar';
@@ -49,7 +48,9 @@ export default function YearlyPage({ params }: { params: Promise<{ profile: stri
       <div className="flex flex-col">
         <Header title={`${profileNames[profile]} — Year to Date`} subtitle={`${year}`} showYearPicker />
         <div className="flex flex-col items-center justify-center p-20 text-center">
-          <CalendarDays className="mb-4 h-16 w-16 text-muted-foreground/30" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
+            <CalendarDays className="h-8 w-8 text-muted-foreground" />
+          </div>
           <h2 className="text-xl font-semibold">No data for {year}</h2>
           <p className="mt-2 text-sm text-muted-foreground">Upload bank statements to see yearly trends.</p>
         </div>
@@ -65,7 +66,7 @@ export default function YearlyPage({ params }: { params: Promise<{ profile: stri
         showYearPicker
       />
 
-      <div className="space-y-6 p-8">
+      <div className="space-y-6 p-6 lg:p-8">
         <KPICards
           data={{
             totalIncome: data.kpis.totalIncome,

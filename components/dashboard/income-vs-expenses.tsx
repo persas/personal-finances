@@ -7,6 +7,14 @@ function fmt(n: number): string {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const tooltipStyle = {
+  background: 'var(--chart-tooltip-bg)',
+  border: '1px solid var(--chart-tooltip-border)',
+  borderRadius: 10,
+  color: 'var(--foreground)',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+};
+
 interface Props {
   totalIncome: number;
   totalExpenses: number;
@@ -15,7 +23,7 @@ interface Props {
 
 export function IncomeVsExpenses({ totalIncome, totalExpenses, netSavings }: Props) {
   const data = [
-    { name: 'Income', value: totalIncome, fill: '#22c55e' },
+    { name: 'Income', value: totalIncome, fill: '#10b981' },
     { name: 'Expenses', value: totalExpenses, fill: '#ef4444' },
     { name: 'Savings', value: Math.max(netSavings, 0), fill: '#3b82f6' },
   ];
@@ -28,13 +36,24 @@ export function IncomeVsExpenses({ totalIncome, totalExpenses, netSavings }: Pro
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-            <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `${v}€`} />
-            <Tooltip
-              contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
-              formatter={(value: number | undefined) => [`${fmt(value ?? 0)}€`, '']}
+            <XAxis
+              dataKey="name"
+              tick={{ fill: 'var(--chart-tick)', fontSize: 12 }}
+              axisLine={false}
+              tickLine={false}
             />
-            <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={48}>
+            <YAxis
+              tick={{ fill: 'var(--chart-tick)', fontSize: 11 }}
+              tickFormatter={v => `${v}\u20AC`}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              formatter={(value: number | undefined) => [`${fmt(value ?? 0)}\u20AC`, '']}
+              cursor={{ fill: 'var(--chart-grid)', opacity: 0.5 }}
+            />
+            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={56}>
               {data.map((entry, i) => (
                 <Cell key={i} fill={entry.fill} />
               ))}

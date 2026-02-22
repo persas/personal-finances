@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -140,7 +140,7 @@ export default function BudgetPage({ params }: { params: Promise<{ profile: stri
         showYearPicker
       />
 
-      <div className="p-8 space-y-6">
+      <div className="p-6 lg:p-8 space-y-6">
         {/* Summary */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
@@ -243,8 +243,8 @@ export default function BudgetPage({ params }: { params: Promise<{ profile: stri
                 </TableHeader>
                 <TableBody>
                   {Object.entries(grouped).map(([group, lines]) => (
-                    <>
-                      <TableRow key={`grp-${group}`} className="bg-muted/50">
+                    <React.Fragment key={group}>
+                      <TableRow className="bg-muted/50">
                         <TableCell colSpan={5} className="font-bold" style={{ color: getBudgetGroupColor(group) }}>
                           {group} — {fmt(lines.reduce((s, l) => s + Number(l.monthly_amount), 0))}€/mo
                         </TableCell>
@@ -267,7 +267,7 @@ export default function BudgetPage({ params }: { params: Promise<{ profile: stri
                           </TableCell>
                         </TableRow>
                       ))}
-                    </>
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>

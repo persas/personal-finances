@@ -15,17 +15,14 @@ interface Props {
 
 function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
   const groupColor = getBudgetGroupColor(item.group);
-  const pct = Math.min(item.percentUsed, 150); // cap visual at 150%
+  const pct = Math.min(item.percentUsed, 150);
   const pace = item.expectedPace;
 
-  // Determine the arc color based on status
   const arcColor =
-    item.status === 'over_budget' ? '#ef4444'   // red
-    : item.status === 'over_pace' ? '#f59e0b'   // amber
-    : '#22c55e';                                  // green
+    item.status === 'over_budget' ? '#ef4444'
+    : item.status === 'over_pace' ? '#f59e0b'
+    : '#10b981';
 
-  // The donut: spent portion + remaining portion
-  // If over 100%, show full circle in the status color
   const spentAngle = Math.min(pct, 100);
   const remainAngle = Math.max(100 - spentAngle, 0);
 
@@ -34,16 +31,11 @@ function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
     { name: 'Remaining', value: remainAngle },
   ];
 
-  // Overshoot arc (the red bit beyond 100%)
   const overshoot = pct > 100 ? Math.min(pct - 100, 50) : 0;
   const overshootData = overshoot > 0 ? [
     { name: 'Over', value: overshoot },
     { name: 'Rest', value: 100 - overshoot },
   ] : null;
-
-  // Pace marker angle: 0 degrees = top, clockwise
-  // Recharts Pie starts at 90° (3 o'clock). startAngle=90, endAngle=-270 goes clockwise from top.
-  // So pace% maps to an angle.
 
   return (
     <div className="flex flex-col items-center">
@@ -63,7 +55,7 @@ function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
               stroke="none"
               isAnimationActive={false}
             >
-              <Cell fill="#1e293b" />
+              <Cell fill="var(--chart-track)" />
             </Pie>
 
             {/* Main spent arc */}
@@ -100,7 +92,7 @@ function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
               </Pie>
             )}
 
-            {/* Pace marker — thin arc at the expected position */}
+            {/* Pace marker */}
             <Pie
               data={[
                 { value: Math.max(pace - 1, 0) },
@@ -118,7 +110,7 @@ function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
               isAnimationActive={false}
             >
               <Cell fill="transparent" />
-              <Cell fill="#ffffff" opacity={0.5} />
+              <Cell fill="var(--foreground)" opacity={0.3} />
               <Cell fill="transparent" />
             </Pie>
           </PieChart>
@@ -137,18 +129,18 @@ function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
       <p className="mt-2 text-sm font-semibold truncate max-w-[130px] text-center" style={{ color: groupColor }}>
         {item.group}
       </p>
-      <p className="text-xs text-muted-foreground">{fmt(item.spentYTD)}€ / {fmt(item.annualBudget)}€</p>
+      <p className="text-xs text-muted-foreground">{fmt(item.spentYTD)}&euro; / {fmt(item.annualBudget)}&euro;</p>
       <p className={`text-xs font-semibold mt-0.5 ${
-        item.status === 'over_budget' ? 'text-red-400'
-        : item.status === 'over_pace' ? 'text-yellow-400'
-        : 'text-green-400'
+        item.status === 'over_budget' ? 'text-red-600 dark:text-red-400'
+        : item.status === 'over_pace' ? 'text-amber-600 dark:text-amber-400'
+        : 'text-emerald-600 dark:text-emerald-400'
       }`}>
         {item.status === 'over_budget' ? 'Over budget'
         : item.status === 'over_pace' ? 'Over pace'
         : 'On track'}
       </p>
-      <p className={`text-[10px] ${item.remainingBudget >= 0 ? 'text-muted-foreground' : 'text-red-400'}`}>
-        {item.remainingBudget >= 0 ? `${fmt(item.remainingBudget)}€ left` : `${fmt(Math.abs(item.remainingBudget))}€ over`}
+      <p className={`text-[10px] ${item.remainingBudget >= 0 ? 'text-muted-foreground' : 'text-red-600 dark:text-red-400'}`}>
+        {item.remainingBudget >= 0 ? `${fmt(item.remainingBudget)}\u20AC left` : `${fmt(Math.abs(item.remainingBudget))}\u20AC over`}
       </p>
     </div>
   );
@@ -165,23 +157,23 @@ export function BudgetGroupChart({ data }: Props) {
         <CardTitle className="flex items-center gap-3">
           Budget Group Overview
           <span className="text-xs font-normal text-muted-foreground">
-            Expected pace: {expectedPace.toFixed(0)}% · White marker = where you should be
+            Expected pace: {expectedPace.toFixed(0)}%
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap justify-center gap-6 py-2">
+        <div className="flex flex-wrap justify-center gap-8 py-2">
           {data.map(d => (
             <GaugeDonut key={d.group} item={d} />
           ))}
         </div>
-        <div className="mt-4 flex items-center justify-center gap-6 text-xs text-muted-foreground">
+        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
             On track
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" />
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
             Over pace
           </span>
           <span className="flex items-center gap-1.5">
@@ -189,7 +181,7 @@ export function BudgetGroupChart({ data }: Props) {
             Over budget
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-0.5 bg-white/50" />
+            <span className="inline-block h-2.5 w-0.5 rounded bg-foreground/30" />
             Expected pace
           </span>
         </div>
