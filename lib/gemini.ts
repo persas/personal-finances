@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import type { BudgetLine, ParsedTransaction } from './types';
+import type { BudgetLine, ParsedTransaction, DashboardData } from './types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -81,4 +81,90 @@ ${csvText}`;
     console.error('[Gemini] Full raw response:', text);
     throw new Error(`Failed to parse Gemini response. Raw start: ${text.substring(0, 300)}`);
   }
+}
+
+export async function analyzeMonth(
+  data: DashboardData,
+  userComments: string | null,
+  profileName: string
+): Promise<string> {
+  const { kpis, budgetComparison, categoryBreakdown } = data;
+
+  const budgetGroupsContext = budgetComparison.groups
+    .map(g => `  - ${g.group}: Budget ${g.budget.toFixed(2)}€, Actual ${g.actual.toFixed(2)}€, Delta ${g.delta >= 0 ? '+' : ''}${g.delta.toFixed(2)}€`)
+    .join('\n');
+
+  const budgetLinesContext = budgetComparison.lines
+    .map(l => `  - [${l.group}] ${l.line}: Budget ${l.budget.toFixed(2)}€, Actual ${l.actual.toFixed(2)}€, Delta ${l.delta >= 0 ? '+' : ''}${l.delta.toFixed(2)}€`)
+    .join('\n');
+
+  const categoriesContext = categoryBreakdown
+    .slice(0, 15)
+    .map(c => `  - ${c.category}: ${c.total.toFixed(2)}€ (${c.count} transactions)`)
+    .join('\n');
+
+  const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const prompt = `You are a personal finance advisor analyzing ${profileName}'s spending for ${monthNames[data.month]} ${data.year}.
+
+Here is the financial data for this month:
+
+**Key Metrics:**
+- Total Income: ${kpis.totalIncome.toFixed(2)}€
+- Total Expenses: ${kpis.totalExpenses.toFixed(2)}€
+- Net Savings: ${kpis.netSavings.toFixed(2)}€
+- Savings Rate: ${kpis.savingsRate.toFixed(1)}%
+- Daily Average Spend: ${kpis.dailyAvgSpend.toFixed(2)}€
+- Transaction Count: ${kpis.transactionCount}
+
+**Budget vs Actual by Group:**
+${budgetGroupsContext}
+
+**Budget vs Actual by Line:**
+${budgetLinesContext}
+
+**Top Spending Categories:**
+${categoriesContext}
+
+${userComments ? `**User's comments / context for this month:**\n${userComments}\n` : ''}
+Write a concise monthly financial report in markdown. Structure it as:
+
+1. **Overall Verdict** — A single sentence: are they on track, slightly over, or significantly over budget this month? Use a clear emoji indicator (✅, ⚠️, or 🚨).
+
+2. **Income & Savings** — Brief assessment of income vs expenses and savings rate.
+
+3. **Budget Analysis** — Go through each budget group. For groups that are over budget, explain by how much and which specific lines are the culprits. For groups under budget, briefly acknowledge. Focus on the meaningful variances.
+
+4. **Top Concerns** — List the 2-3 biggest issues or areas of overspending, if any.
+
+5. **Recommendations** — 2-3 specific, actionable suggestions for next month.
+
+Rules:
+- Be direct and honest but not preachy
+- Use actual euro amounts, not just percentages
+- If the user provided comments explaining unusual spending, acknowledge them and factor them into the analysis
+- Keep it concise — the whole report should be readable in under 2 minutes
+- Write amounts with € symbol
+- A positive delta means over budget (bad for expenses), negative delta means under budget (good)
+- Do not use markdown headers larger than h3 (###)`;
+
+  console.log(`[Gemini] Analyzing month ${data.month}/${data.year} for ${profileName}...`);
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
+    config: {
+      temperature: 0.4,
+      maxOutputTokens: 4096,
+    },
+  });
+
+  const text = response.text?.trim() || '';
+  console.log(`[Gemini] Analysis response length: ${text.length} chars`);
+
+  if (!text) {
+    throw new Error('Gemini returned an empty analysis');
+  }
+
+  return text;
 }
