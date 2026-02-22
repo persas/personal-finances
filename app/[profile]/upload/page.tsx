@@ -133,7 +133,7 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
         showMonthPicker
       />
 
-      <div className="p-8 space-y-6">
+      <div className="p-6 lg:p-8 space-y-6">
         {/* Drop Zone */}
         <Card>
           <CardHeader>
@@ -263,7 +263,7 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
                             />
                           ) : tx.description}
                         </TableCell>
-                        <TableCell className={`font-mono text-sm font-medium ${tx.type === 'income' ? 'text-green-400' : tx.type === 'expense' ? 'text-red-400' : 'text-muted-foreground'}`}>
+                        <TableCell className={`font-mono text-sm font-medium ${tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : tx.type === 'expense' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
                           {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}{tx.amount.toFixed(2)}
                         </TableCell>
                         <TableCell>

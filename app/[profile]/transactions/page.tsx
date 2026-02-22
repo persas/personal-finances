@@ -336,7 +336,7 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
         showMonthPicker
       />
 
-      <div className="p-8">
+      <div className="p-6 lg:p-8">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -402,8 +402,8 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
             {/* Summary */}
             <div className="flex items-center justify-between rounded-lg bg-muted p-3 text-sm">
               <span>Showing {filtered.length} of {transactions.length} transactions</span>
-              <span className={`font-bold ${totalFiltered >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                Net: {totalFiltered >= 0 ? '+' : ''}{fmt(totalFiltered)}€
+              <span className={`font-bold ${totalFiltered >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                Net: {totalFiltered >= 0 ? '+' : ''}{fmt(totalFiltered)}&euro;
               </span>
             </div>
 
@@ -485,7 +485,7 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
                           {isEditing(tx.id) ? (
                             <Input type="number" step="0.01" value={editFields.amount} onChange={e => setEditFields(f => ({ ...f, amount: Number(e.target.value) }))} className="h-7 text-xs text-right w-[90px]" />
                           ) : (
-                            <span className={`font-mono text-sm font-medium ${tx.type === 'income' || tx.type === 'credit' ? 'text-green-400' : tx.type === 'expense' ? 'text-red-400' : ''}`}>
+                            <span className={`font-mono text-sm font-medium ${tx.type === 'income' || tx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : tx.type === 'expense' ? 'text-red-600 dark:text-red-400' : ''}`}>
                               {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}{fmt(Number(tx.amount))}€
                             </span>
                           )}
@@ -511,10 +511,10 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
                           {isEditing(tx.id) ? (
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="sm" onClick={saveEdit} disabled={saving} className="h-7 w-7 p-0">
-                                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 text-green-400" />}
+                                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
                               </Button>
                               <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={saving} className="h-7 w-7 p-0">
-                                <X className="h-3 w-3 text-red-400" />
+                                <X className="h-3 w-3 text-red-600 dark:text-red-400" />
                               </Button>
                             </div>
                           ) : (
