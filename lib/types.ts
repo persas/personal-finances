@@ -148,6 +148,18 @@ export interface MonthlyByGroupEntry {
   [key: string]: number;
 }
 
+// ---- Monthly Analysis Reports (from main) ----
+
+export interface Report {
+  id: number;
+  profile_id: string;
+  month: number;
+  year: number;
+  user_comments: string | null;
+  report_text: string;
+  created_at: string;
+}
+
 // ---- Investment Types ----
 
 export type AssetType = 'stock' | 'etf' | 'fund' | 'crypto' | 'other';
