@@ -147,3 +147,13 @@ export interface MonthlyByGroupEntry {
   month: number;
   [key: string]: number;
 }
+
+export interface Report {
+  id: number;
+  profile_id: string;
+  month: number;
+  year: number;
+  user_comments: string | null;
+  report_text: string;
+  created_at: string;
+}

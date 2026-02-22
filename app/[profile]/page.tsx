@@ -8,6 +8,7 @@ import { BudgetVsActual } from '@/components/dashboard/budget-vs-actual';
 import { CategoryDonut } from '@/components/dashboard/category-donut';
 import { SpendingBar } from '@/components/dashboard/spending-bar';
 import { IncomeVsExpenses } from '@/components/dashboard/income-vs-expenses';
+import { MonthlyAnalysis } from '@/components/dashboard/monthly-analysis';
 import { Loader2, BarChart3 } from 'lucide-react';
 import type { DashboardData } from '@/lib/types';
 
@@ -94,6 +95,8 @@ export default function DashboardPage({ params }: { params: Promise<{ profile: s
         </div>
 
         <SpendingBar data={data.categoryBreakdown} />
+
+        <MonthlyAnalysis profileId={profile} month={month} year={year} />
       </div>
     </div>
   );

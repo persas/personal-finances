@@ -54,6 +54,19 @@ export function initSchema(db: Database.Database): void {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id TEXT NOT NULL,
+      month INTEGER NOT NULL,
+      year INTEGER NOT NULL,
+      user_comments TEXT,
+      report_text TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(profile_id, month, year)
+    )
+  `);
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_tx_profile_month ON transactions(profile_id, month, year)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_tx_profile_year ON transactions(profile_id, year)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_budget_profile ON budget_lines(profile_id, year)`);
