@@ -58,6 +58,78 @@ export function initSchema(db: Database.Database): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_tx_profile_year ON transactions(profile_id, year)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_budget_profile ON budget_lines(profile_id, year)`);
 
+  // ---- Investment tables ----
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS portfolio_assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      ticker TEXT,
+      asset_type TEXT NOT NULL CHECK(asset_type IN ('stock', 'etf', 'fund', 'crypto', 'other')),
+      is_public INTEGER NOT NULL DEFAULT 0,
+      provider_id TEXT,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS portfolio_lots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      asset_id INTEGER NOT NULL REFERENCES portfolio_assets(id) ON DELETE CASCADE,
+      quantity REAL NOT NULL,
+      price_per_unit REAL NOT NULL,
+      purchase_date TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS asset_prices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      asset_id INTEGER NOT NULL REFERENCES portfolio_assets(id) ON DELETE CASCADE,
+      price REAL NOT NULL,
+      date TEXT NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('yahoo', 'coingecko', 'manual')),
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(asset_id, date, source)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS watchlist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id TEXT NOT NULL,
+      ticker TEXT NOT NULL,
+      name TEXT NOT NULL,
+      asset_type TEXT NOT NULL DEFAULT 'stock',
+      exchange TEXT,
+      added_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(profile_id, ticker)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS research_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      watchlist_id INTEGER NOT NULL REFERENCES watchlist(id) ON DELETE CASCADE,
+      research_date TEXT DEFAULT (datetime('now')),
+      content TEXT NOT NULL,
+      sentiment TEXT CHECK(sentiment IN ('bullish', 'bearish', 'neutral', 'mixed')),
+      summary TEXT,
+      model_used TEXT DEFAULT 'gemini-2.5-pro'
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_assets_profile ON portfolio_assets(profile_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_lots_asset ON portfolio_lots(asset_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prices_asset_date ON asset_prices(asset_id, date DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_watchlist_profile ON watchlist(profile_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_research_watchlist ON research_reports(watchlist_id, research_date DESC)`);
+
   seedProfiles(db);
   seedBudgets(db);
 }

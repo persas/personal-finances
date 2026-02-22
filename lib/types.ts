@@ -147,3 +147,94 @@ export interface MonthlyByGroupEntry {
   month: number;
   [key: string]: number;
 }
+
+// ---- Investment Types ----
+
+export type AssetType = 'stock' | 'etf' | 'fund' | 'crypto' | 'other';
+export type PriceSource = 'yahoo' | 'coingecko' | 'manual';
+export type Sentiment = 'bullish' | 'bearish' | 'neutral' | 'mixed';
+
+export interface PortfolioAsset {
+  id: number;
+  profile_id: string;
+  name: string;
+  ticker: string | null;
+  asset_type: AssetType;
+  is_public: number;
+  provider_id: string | null;
+  currency: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface PortfolioLot {
+  id: number;
+  asset_id: number;
+  quantity: number;
+  price_per_unit: number;
+  purchase_date: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface AssetPrice {
+  id: number;
+  asset_id: number;
+  price: number;
+  date: string;
+  source: PriceSource;
+  created_at: string;
+}
+
+export interface PortfolioHolding {
+  asset: PortfolioAsset;
+  lots: PortfolioLot[];
+  totalQuantity: number;
+  totalCost: number;
+  avgCostPerUnit: number;
+  currentPrice: number | null;
+  currentValue: number | null;
+  gainLoss: number | null;
+  gainLossPercent: number | null;
+  lastPriceDate: string | null;
+  lastPriceSource: PriceSource | null;
+}
+
+export interface PortfolioSummary {
+  totalValue: number;
+  totalCost: number;
+  totalGainLoss: number;
+  totalGainLossPercent: number;
+  holdings: PortfolioHolding[];
+  allocationByType: { type: AssetType; value: number; percentage: number }[];
+}
+
+export interface WatchlistItem {
+  id: number;
+  profile_id: string;
+  ticker: string;
+  name: string;
+  asset_type: AssetType;
+  exchange: string | null;
+  added_at: string;
+  latestReport?: ResearchReport | null;
+}
+
+export interface ResearchReport {
+  id: number;
+  watchlist_id: number;
+  research_date: string;
+  content: ResearchContent;
+  sentiment: Sentiment | null;
+  summary: string | null;
+  model_used: string;
+}
+
+export interface ResearchContent {
+  overview: string;
+  financials: string;
+  sentiment_analysis: string;
+  opportunities: string;
+  risks: string;
+  recommendation: string;
+}

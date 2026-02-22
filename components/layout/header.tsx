@@ -19,9 +19,10 @@ interface HeaderProps {
   subtitle?: string;
   showMonthPicker?: boolean;
   showYearPicker?: boolean;
+  actions?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, showMonthPicker = false, showYearPicker = false }: HeaderProps) {
+export function Header({ title, subtitle, showMonthPicker = false, showYearPicker = false, actions }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -46,6 +47,7 @@ export function Header({ title, subtitle, showMonthPicker = false, showYearPicke
         {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-2">
+        {actions}
         {showMonthPicker && (
           <Select
             value={String(currentMonth)}
