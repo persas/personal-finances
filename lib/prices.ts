@@ -1,5 +1,9 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const yahooFinance = require('yahoo-finance2').default;
+import { fetchQuote } from './finnhub';
+
+function cleanTicker(ticker: string): string {
+  const colonIdx = ticker.indexOf(':');
+  return colonIdx >= 0 ? ticker.slice(colonIdx + 1).trim() : ticker.trim();
+}
 
 export async function fetchStockPrices(
   tickers: string[]
@@ -7,9 +11,9 @@ export async function fetchStockPrices(
   const results = new Map<string, number>();
   for (const ticker of tickers) {
     try {
-      const quote = await yahooFinance.quote(ticker);
-      if (quote?.regularMarketPrice) {
-        results.set(ticker, quote.regularMarketPrice);
+      const quote = await fetchQuote(cleanTicker(ticker));
+      if (quote && quote.c > 0) {
+        results.set(ticker, quote.c);
       }
     } catch (e) {
       console.error(`[prices] Failed to fetch ${ticker}:`, e);

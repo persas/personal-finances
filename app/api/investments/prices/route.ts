@@ -110,7 +110,7 @@ async function handleAutoUpdate(body: { profileId: string }) {
       if (price != null) {
         run(
           `INSERT OR REPLACE INTO asset_prices (asset_id, price, date, source)
-           VALUES (?, ?, ?, 'yahoo')`,
+           VALUES (?, ?, ?, 'finnhub')`,
           id, price, today
         );
         updated++;

@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import { Header } from '@/components/layout/header';
 import { WatchlistPanel } from '@/components/investments/watchlist-panel';
-import { ResearchReportView } from '@/components/investments/research-report';
+import { ResearchReportView } from '@/components/investments/research/research-report';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
