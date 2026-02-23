@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SentimentBadge } from './sentiment-badge';
-import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Loader2, PanelLeftClose } from 'lucide-react';
 import { toast } from 'sonner';
 import type { WatchlistItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -19,10 +19,11 @@ interface Props {
   onRefresh: () => void;
   onResearch: (id: number) => void;
   researchingId: number | null;
+  onCollapse?: () => void;
 }
 
 export function WatchlistPanel({
-  items, selectedId, onSelect, profileId, onRefresh, onResearch, researchingId,
+  items, selectedId, onSelect, profileId, onRefresh, onResearch, researchingId, onCollapse,
 }: Props) {
   const [ticker, setTicker] = useState('');
   const [name, setName] = useState('');
@@ -68,11 +69,20 @@ export function WatchlistPanel({
       {/* Add form */}
       <div className="space-y-2 p-4 border-b">
         <div className="flex gap-2">
+          {onCollapse && (
+            <Button
+              variant="ghost" size="icon" className="h-9 w-9 shrink-0"
+              onClick={onCollapse}
+              title="Collapse panel"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          )}
           <Input
             value={ticker}
             onChange={e => setTicker(e.target.value.toUpperCase())}
             placeholder="Ticker"
-            className="w-24"
+            className="w-20"
           />
           <Input
             value={name}

@@ -12,6 +12,62 @@ interface Props {
   name: string;
 }
 
+function renderContent(content: unknown): React.ReactNode {
+  if (typeof content === 'string') {
+    return content.split('\n').filter(p => p.trim()).map((paragraph, i) => (
+      <p key={i} className="text-sm leading-relaxed text-foreground/90 mb-3">
+        {paragraph}
+      </p>
+    ));
+  }
+
+  if (Array.isArray(content)) {
+    return (
+      <ul className="space-y-3">
+        {content.map((item, i) => {
+          if (typeof item === 'string') {
+            return <li key={i} className="text-sm leading-relaxed text-foreground/90">{item}</li>;
+          }
+          if (typeof item === 'object' && item !== null) {
+            const entries = Object.entries(item as Record<string, unknown>);
+            const title = entries.find(([k]) => ['opportunity', 'risk', 'name', 'title', 'catalyst'].includes(k));
+            const desc = entries.find(([k]) => ['description', 'detail', 'details', 'explanation', 'impact'].includes(k));
+            return (
+              <li key={i} className="text-sm leading-relaxed text-foreground/90">
+                {title && <span className="font-medium">{String(title[1])}</span>}
+                {title && desc && <span className="text-muted-foreground"> — </span>}
+                {desc ? String(desc[1]) : !title ? renderKeyValue(item as Record<string, unknown>) : null}
+              </li>
+            );
+          }
+          return <li key={i} className="text-sm text-foreground/90">{String(item)}</li>;
+        })}
+      </ul>
+    );
+  }
+
+  if (typeof content === 'object' && content !== null) {
+    return renderKeyValue(content as Record<string, unknown>);
+  }
+
+  return <p className="text-sm text-foreground/90">{String(content)}</p>;
+}
+
+function renderKeyValue(obj: Record<string, unknown>): React.ReactNode {
+  return (
+    <dl className="space-y-2">
+      {Object.entries(obj).map(([key, value]) => (
+        <div key={key} className="flex gap-2 text-sm">
+          <dt className="font-medium text-foreground/70 min-w-[140px] shrink-0">
+            {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+          </dt>
+          <dd className="text-foreground/90">{String(value)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function ResearchReportView({ report, ticker, name }: Props) {
   if (!report) {
     return (
@@ -51,7 +107,9 @@ export function ResearchReportView({ report, ticker, name }: Props) {
           <SentimentBadge sentiment={report.sentiment} />
         </div>
         {report.summary && (
-          <p className="text-sm text-muted-foreground mt-2 italic">{report.summary}</p>
+          <p className="text-sm text-muted-foreground mt-2 italic">
+            {typeof report.summary === 'string' ? report.summary : String(report.summary)}
+          </p>
         )}
       </CardHeader>
       <CardContent className="flex-1 overflow-auto">
@@ -65,12 +123,8 @@ export function ResearchReportView({ report, ticker, name }: Props) {
           </TabsList>
           {sections.map(s => (
             <TabsContent key={s.key} value={s.key} className="mt-4">
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                {s.content.split('\n').map((paragraph, i) => (
-                  <p key={i} className="text-sm leading-relaxed text-foreground/90 mb-3">
-                    {paragraph}
-                  </p>
-                ))}
+              <div className="max-w-none">
+                {renderContent(s.content)}
               </div>
             </TabsContent>
           ))}
