@@ -106,7 +106,7 @@ export function initSchema(db: Database.Database): void {
       asset_id INTEGER NOT NULL REFERENCES portfolio_assets(id) ON DELETE CASCADE,
       price REAL NOT NULL,
       date TEXT NOT NULL,
-      source TEXT NOT NULL CHECK(source IN ('yahoo', 'coingecko', 'manual')),
+      source TEXT NOT NULL CHECK(source IN ('yahoo', 'finnhub', 'coingecko', 'manual')),
       created_at TEXT DEFAULT (datetime('now')),
       UNIQUE(asset_id, date, source)
     )
