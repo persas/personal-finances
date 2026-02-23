@@ -1,102 +1,68 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Header } from '@/components/layout/header';
-import { KPICards } from '@/components/dashboard/kpi-cards';
-import { BudgetVsActual } from '@/components/dashboard/budget-vs-actual';
-import { CategoryDonut } from '@/components/dashboard/category-donut';
-import { SpendingBar } from '@/components/dashboard/spending-bar';
-import { IncomeVsExpenses } from '@/components/dashboard/income-vs-expenses';
-import { MonthlyAnalysis } from '@/components/dashboard/monthly-analysis';
-import { Loader2, BarChart3 } from 'lucide-react';
-import type { DashboardData } from '@/lib/types';
+import { use } from 'react';
+import Link from 'next/link';
+import { Wallet, TrendingUp } from 'lucide-react';
 
-const MONTHS = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+const profileNames: Record<string, string> = { diego: 'Diego', marta: 'Marta', casa: 'Casa' };
 
-export default function DashboardPage({ params }: { params: Promise<{ profile: string }> }) {
+export default function ProfileLandingPage({ params }: { params: Promise<{ profile: string }> }) {
   const { profile } = use(params);
-  const searchParams = useSearchParams();
-  const month = Number(searchParams.get('month')) || new Date().getMonth() + 1;
-  const year = Number(searchParams.get('year')) || new Date().getFullYear();
+  const name = profileNames[profile] || profile;
 
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const profileNames: Record<string, string> = { diego: 'Diego', marta: 'Marta', casa: 'Casa' };
-
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/dashboard?profileId=${profile}&month=${month}&year=${year}`)
-      .then(res => res.json())
-      .then(setData)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [profile, month, year]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col">
-        <Header title="Dashboard" subtitle="Loading..." showMonthPicker />
-        <div className="flex items-center justify-center p-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!data || data.kpis.transactionCount === 0) {
-    return (
-      <div className="flex flex-col">
-        <Header
-          title={`${profileNames[profile] || profile}'s Dashboard`}
-          subtitle={`${MONTHS[month]} ${year}`}
-          showMonthPicker
-        />
-        <div className="flex flex-col items-center justify-center p-20 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
-            <BarChart3 className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h2 className="text-xl font-semibold">No data for {MONTHS[month]} {year}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Upload a bank statement CSV to get started.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const apps = [
+    {
+      title: 'Budgeting',
+      description: 'Track expenses, manage budgets, upload bank statements, and view spending dashboards.',
+      href: `/${profile}/dashboard`,
+      icon: Wallet,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
+      border: 'border-blue-500/20 hover:border-blue-500/40',
+    },
+    {
+      title: 'Investments',
+      description: 'Track your portfolio, monitor stock prices, and research investment opportunities with AI.',
+      href: `/${profile}/investments`,
+      icon: TrendingUp,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10',
+      border: 'border-emerald-500/20 hover:border-emerald-500/40',
+    },
+  ];
 
   return (
-    <div className="flex flex-col">
-      <Header
-        title={`${profileNames[profile] || profile}'s Dashboard`}
-        subtitle={`${MONTHS[month]} ${year}`}
-        showMonthPicker
-      />
-
-      <div className="space-y-6 p-6 lg:p-8">
-        <KPICards data={data.kpis} />
-
-        <BudgetVsActual
-          groups={data.budgetComparison.groups}
-          lines={data.budgetComparison.lines}
-        />
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <IncomeVsExpenses
-            totalIncome={data.kpis.totalIncome}
-            totalExpenses={data.kpis.totalExpenses}
-            netSavings={data.kpis.netSavings}
-          />
-          <CategoryDonut data={data.categoryBreakdown} />
+    <div className="flex flex-1 flex-col">
+      <div className="flex items-center justify-between border-b bg-card/80 backdrop-blur-sm px-8 py-5 sticky top-0 z-10">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Choose a section to get started</p>
         </div>
+      </div>
 
-        <SpendingBar data={data.categoryBreakdown} />
-
-        <MonthlyAnalysis profileId={profile} month={month} year={year} />
+      <div className="flex flex-1 items-center justify-center p-8">
+        <div className="grid gap-6 sm:grid-cols-2 max-w-2xl w-full">
+          {apps.map((app) => {
+            const Icon = app.icon;
+            return (
+              <Link
+                key={app.title}
+                href={app.href}
+                className={`group flex flex-col gap-4 rounded-2xl border ${app.border} bg-card p-8 transition-all hover:shadow-lg`}
+              >
+                <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${app.bg}`}>
+                  <Icon className={`h-7 w-7 ${app.color}`} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight">{app.title}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {app.description}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

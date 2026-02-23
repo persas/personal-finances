@@ -62,3 +62,40 @@ export function getCategoryColor(category: string): string {
 export function getBudgetGroupColor(group: string): string {
   return BUDGET_GROUP_COLORS[group] || '#64748b';
 }
+
+// ---- Investment constants ----
+
+export const ASSET_TYPES = ['stock', 'etf', 'fund', 'crypto', 'other'] as const;
+
+export const ASSET_TYPE_LABELS: Record<string, string> = {
+  stock: 'Stock',
+  etf: 'ETF',
+  fund: 'Fund',
+  crypto: 'Crypto',
+  other: 'Other',
+};
+
+export const ASSET_TYPE_COLORS: Record<string, string> = {
+  stock: '#3b82f6',
+  etf: '#8b5cf6',
+  fund: '#22c55e',
+  crypto: '#f59e0b',
+  other: '#64748b',
+};
+
+export function getAssetTypeColor(type: string): string {
+  return ASSET_TYPE_COLORS[type] || '#64748b';
+}
+
+export const TOP_CRYPTOS = [
+  { ticker: 'BTC', name: 'Bitcoin', providerId: 'bitcoin' },
+  { ticker: 'ETH', name: 'Ethereum', providerId: 'ethereum' },
+  { ticker: 'SOL', name: 'Solana', providerId: 'solana' },
+  { ticker: 'BNB', name: 'BNB', providerId: 'binancecoin' },
+  { ticker: 'XRP', name: 'XRP', providerId: 'ripple' },
+  { ticker: 'ADA', name: 'Cardano', providerId: 'cardano' },
+  { ticker: 'AVAX', name: 'Avalanche', providerId: 'avalanche-2' },
+  { ticker: 'DOT', name: 'Polkadot', providerId: 'polkadot' },
+  { ticker: 'LINK', name: 'Chainlink', providerId: 'chainlink' },
+  { ticker: 'DOGE', name: 'Dogecoin', providerId: 'dogecoin' },
+] as const;
