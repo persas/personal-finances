@@ -35,6 +35,8 @@ Rules:
 - Salary, freelance income, reimbursements received → type "income", budget_group "Income"
 - Amounts must ALWAYS be positive numbers. The "type" field indicates the direction.
 - Auto-detect the bank from CSV format/headers (BBVA, Revolut, AMEX, CaixaBank, ING, etc.)
+- IMPORTANT: There is no Bankinter account. If the CSV looks like it could be Bankinter, it is actually BBVA. Always use "BBVA" as the source, never "Bankinter".
+- Fuel/gasoline transactions over 25€ are for leisure road trips, NOT daily commuting. Categorize them as category "Fuel", budget_group "Guilt-Free", budget_line "Guilt-Free Spending". Only fuel transactions of 25€ or less should go to budget_group "Fixed Costs", budget_line "Transportation".
 - Skip header rows, metadata rows, summary rows — only include actual transactions
 - Parse dates correctly regardless of format (DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.)
 - Handle comma decimal separators (European format) and period decimal separators
