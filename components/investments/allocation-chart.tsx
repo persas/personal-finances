@@ -26,6 +26,7 @@ export function AllocationChart({ data, total }: Props) {
   const chartData = data.map(d => ({
     name: ASSET_TYPE_LABELS[d.type] || d.type,
     value: d.value,
+    percentage: d.percentage,
     fill: getAssetTypeColor(d.type),
   }));
 
@@ -53,7 +54,10 @@ export function AllocationChart({ data, total }: Props) {
             </Pie>
             <Tooltip
               contentStyle={tooltipStyle}
-              formatter={(value: number | undefined) => [`${fmt(value ?? 0)}\u20AC`, '']}
+              formatter={(_value: number | undefined, _name: string, props: { payload?: { percentage?: number } }) => [
+                `${fmt(props.payload?.percentage ?? 0)}%`,
+                '',
+              ]}
             />
             <Legend
               iconType="circle"
