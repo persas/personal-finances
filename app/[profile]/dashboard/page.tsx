@@ -20,24 +20,43 @@ const MONTHS = [
 export default function DashboardPage({ params }: { params: Promise<{ profile: string }> }) {
   const { profile } = use(params);
   const searchParams = useSearchParams();
-  const month = Number(searchParams.get('month')) || new Date().getMonth() + 1;
+  const explicitMonth = searchParams.get('month');
   const year = Number(searchParams.get('year')) || new Date().getFullYear();
 
+  const [resolvedMonth, setResolvedMonth] = useState<number | null>(
+    explicitMonth ? Number(explicitMonth) : null,
+  );
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const profileNames: Record<string, string> = { diego: 'Diego', marta: 'Marta', casa: 'Casa' };
 
+  // Resolve month: use explicit param or fetch last month with data
   useEffect(() => {
+    if (explicitMonth) {
+      setResolvedMonth(Number(explicitMonth));
+      return;
+    }
+    fetch(`/api/dashboard/latest-month?profileId=${profile}&year=${year}`)
+      .then(res => res.json())
+      .then(d => setResolvedMonth(d.month))
+      .catch(() => setResolvedMonth(new Date().getMonth() + 1));
+  }, [profile, year, explicitMonth]);
+
+  // Fetch dashboard data once month is resolved
+  useEffect(() => {
+    if (resolvedMonth === null) return;
     setLoading(true);
-    fetch(`/api/dashboard?profileId=${profile}&month=${month}&year=${year}`)
+    fetch(`/api/dashboard?profileId=${profile}&month=${resolvedMonth}&year=${year}`)
       .then(res => res.json())
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [profile, month, year]);
+  }, [profile, resolvedMonth, year]);
 
-  if (loading) {
+  const month = resolvedMonth ?? new Date().getMonth() + 1;
+
+  if (loading || resolvedMonth === null) {
     return (
       <div className="flex flex-col">
         <Header title="Dashboard" subtitle="Loading..." showMonthPicker />
@@ -83,6 +102,7 @@ export default function DashboardPage({ params }: { params: Promise<{ profile: s
         <BudgetVsActual
           groups={data.budgetComparison.groups}
           lines={data.budgetComparison.lines}
+          transactions={data.transactions}
         />
 
         <div className="grid gap-6 lg:grid-cols-2">

@@ -158,6 +158,7 @@ export async function GET(req: NextRequest) {
     budgetGroupSummary,
     monthlyByGroup,
     categoryBreakdown,
+    transactions,
   };
 
   return NextResponse.json(data);

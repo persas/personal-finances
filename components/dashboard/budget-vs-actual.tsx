@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -10,7 +11,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { getBudgetGroupColor } from '@/lib/categories';
-import type { BudgetGroupSummary, BudgetLineSummary } from '@/lib/types';
+import { TransactionDrawer } from '@/components/dashboard/transaction-drawer';
+import type { BudgetGroupSummary, BudgetLineSummary, Transaction } from '@/lib/types';
 
 function fmt(n: number): string {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,9 +36,47 @@ function ColoredProgress({ value, color }: { value: number; color: string }) {
 interface Props {
   groups: BudgetGroupSummary[];
   lines: BudgetLineSummary[];
+  transactions: Transaction[];
 }
 
-export function BudgetVsActual({ groups, lines }: Props) {
+const isReimbursement = (t: Transaction) =>
+  t.type === 'income' && t.category === 'Reimbursement';
+
+const isExpenseOrCredit = (t: Transaction) =>
+  t.type === 'expense' || t.type === 'credit' || isReimbursement(t);
+
+export function BudgetVsActual({ groups, lines, transactions }: Props) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTitle, setDrawerTitle] = useState('');
+  const [drawerSubtitle, setDrawerSubtitle] = useState('');
+  const [drawerColor, setDrawerColor] = useState<string | undefined>();
+  const [drawerTxns, setDrawerTxns] = useState<Transaction[]>([]);
+
+  function onGroupClick(g: BudgetGroupSummary) {
+    const filtered = transactions.filter(
+      t => t.budget_group === g.group && isExpenseOrCredit(t),
+    );
+    setDrawerTxns(filtered);
+    setDrawerTitle(g.group);
+    setDrawerSubtitle(`Budget: ${fmt(g.budget)}\u20AC | Actual: ${fmt(g.actual)}\u20AC`);
+    setDrawerColor(getBudgetGroupColor(g.group));
+    setDrawerOpen(true);
+  }
+
+  function onLineClick(line: BudgetLineSummary) {
+    const filtered = transactions.filter(
+      t =>
+        t.budget_group === line.group &&
+        t.budget_line === line.line &&
+        isExpenseOrCredit(t),
+    );
+    setDrawerTxns(filtered);
+    setDrawerTitle(line.line);
+    setDrawerSubtitle(`${line.group} — Budget: ${fmt(line.budget)}\u20AC | Actual: ${fmt(line.actual)}\u20AC`);
+    setDrawerColor(getBudgetGroupColor(line.group));
+    setDrawerOpen(true);
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -52,7 +92,8 @@ export function BudgetVsActual({ groups, lines }: Props) {
             return (
               <div
                 key={g.group}
-                className="relative overflow-hidden rounded-xl border p-4"
+                className="relative overflow-hidden rounded-xl border p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                onClick={() => onGroupClick(g)}
               >
                 <div
                   className="absolute left-0 top-0 bottom-0 w-1"
@@ -112,7 +153,11 @@ export function BudgetVsActual({ groups, lines }: Props) {
                 // Hide tracking-only lines with no spending
                 if (isTrackingOnly && line.actual === 0) continue;
                 rows.push(
-                  <TableRow key={`${line.group}-${line.line}`}>
+                  <TableRow
+                    key={`${line.group}-${line.line}`}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() => onLineClick(line)}
+                  >
                     <TableCell className="pl-6">{line.line}</TableCell>
                     <TableCell className="text-right font-mono text-sm">{isTrackingOnly ? <span className="text-muted-foreground">—</span> : <>{fmt(line.budget)}&euro;</>}</TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold">{fmt(line.actual)}&euro;</TableCell>
@@ -148,6 +193,15 @@ export function BudgetVsActual({ groups, lines }: Props) {
           </TableBody>
         </Table>
       </CardContent>
+
+      <TransactionDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        title={drawerTitle}
+        subtitle={drawerSubtitle}
+        transactions={drawerTxns}
+        groupColor={drawerColor}
+      />
     </Card>
   );
 }
