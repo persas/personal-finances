@@ -114,50 +114,54 @@ export async function analyzeMonth(
     .map(c => `  - ${c.category}: ${c.total.toFixed(2)}€ (${c.count} transactions)`)
     .join('\n');
 
-  const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-  const prompt = `You are a personal finance advisor analyzing ${profileName}'s spending for ${monthNames[data.month]} ${data.year}.
+  const prompt = `Eres un asesor financiero personal analizando los gastos de ${profileName} en ${monthNames[data.month]} ${data.year}.
 
-Here is the financial data for this month:
+Aquí están los datos financieros del mes:
 
-**Key Metrics:**
-- Total Income: ${kpis.totalIncome.toFixed(2)}€
-- Total Expenses: ${kpis.totalExpenses.toFixed(2)}€
-- Net Savings: ${kpis.netSavings.toFixed(2)}€
-- Savings Rate: ${kpis.savingsRate.toFixed(1)}%
-- Daily Average Spend: ${kpis.dailyAvgSpend.toFixed(2)}€
-- Transaction Count: ${kpis.transactionCount}
+**Métricas clave:**
+- Ingresos totales: ${kpis.totalIncome.toFixed(2)}€
+- Gastos totales: ${kpis.totalExpenses.toFixed(2)}€
+- Ahorro neto: ${kpis.netSavings.toFixed(2)}€
+- Tasa de ahorro: ${kpis.savingsRate.toFixed(1)}%
+- Gasto medio diario: ${kpis.dailyAvgSpend.toFixed(2)}€
+- Número de transacciones: ${kpis.transactionCount}
 
-**Budget vs Actual by Group:**
+**Presupuesto vs Real por Grupo:**
 ${budgetGroupsContext}
 
-**Budget vs Actual by Line:**
+**Presupuesto vs Real por Línea:**
 ${budgetLinesContext}
 
-**Top Spending Categories:**
+**Top Categorías de Gasto:**
 ${categoriesContext}
 
-${userComments ? `**User's comments / context for this month:**\n${userComments}\n` : ''}
-Write a concise monthly financial report in markdown. Structure it as:
+${userComments ? `**Comentarios / contexto del usuario para este mes:**\n${userComments}\n` : ''}
+Escribe un informe financiero mensual en markdown, EN ESPAÑOL. Estructura el informe con exactamente estas 4 secciones, usando estos títulos exactos como headers h3:
 
-1. **Overall Verdict** — A single sentence: are they on track, slightly over, or significantly over budget this month? Use a clear emoji indicator (✅, ⚠️, or 🚨).
+### 📊 Análisis General
+Un resumen completo del mes: ¿está en buen camino, ligeramente por encima o significativamente por encima del presupuesto? Analiza ingresos vs gastos, tasa de ahorro, y repasa cada grupo presupuestario. Para los grupos que se han pasado de presupuesto, explica cuánto y qué líneas concretas son las culpables. Para los que están por debajo, reconócelo brevemente. Céntrate en las variaciones significativas.
 
-2. **Income & Savings** — Brief assessment of income vs expenses and savings rate.
+### 🔥 Roast del Mes
+Sé brutalmente honesto y con humor. Señala las decisiones financieras más cuestionables del mes con un tono sarcástico pero constructivo. Haz referencia a cifras específicas. Sé creativo y directo — como un amigo que te dice las verdades a la cara pero con cariño. 2-3 párrafos cortos máximo.
 
-3. **Budget Analysis** — Go through each budget group. For groups that are over budget, explain by how much and which specific lines are the culprits. For groups under budget, briefly acknowledge. Focus on the meaningful variances.
+### 💡 Recomendaciones para Mejorar tu Salud Financiera
+3-4 recomendaciones específicas y accionables para el próximo mes. Usa cantidades concretas en euros cuando sea posible. Cada recomendación debe ser práctica y directa, no genérica.
 
-4. **Top Concerns** — List the 2-3 biggest issues or areas of overspending, if any.
+### 👀 Cosas a las que Estar Atento
+2-3 señales de alerta o tendencias preocupantes que deberían vigilarse. Pueden ser patrones de gasto que se repiten, líneas presupuestarias que se acercan al límite, o hábitos que podrían escalar.
 
-5. **Recommendations** — 2-3 specific, actionable suggestions for next month.
-
-Rules:
-- Be direct and honest but not preachy
-- Use actual euro amounts, not just percentages
-- If the user provided comments explaining unusual spending, acknowledge them and factor them into the analysis
-- Keep it concise — the whole report should be readable in under 2 minutes
-- Write amounts with € symbol
-- A positive delta means over budget (bad for expenses), negative delta means under budget (good)
-- Do not use markdown headers larger than h3 (###)`;
+Reglas:
+- Escribe TODO en español
+- Sé directo y honesto, no seas condescendiente
+- Usa cantidades en euros reales, no solo porcentajes
+- Si el usuario proporcionó comentarios explicando gastos inusuales, reconócelos y tenlos en cuenta
+- El informe completo debe leerse en menos de 3 minutos
+- Escribe cantidades con símbolo €
+- Un delta positivo significa por encima del presupuesto (malo para gastos), delta negativo significa por debajo (bueno)
+- No uses headers de markdown más grandes que h3 (###)
+- Usa los emojis SOLO en los títulos de las secciones como se indica arriba`;
 
   console.log(`[Gemini] Analyzing month ${data.month}/${data.year} for ${profileName}...`);
 

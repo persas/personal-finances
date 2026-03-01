@@ -39,15 +39,14 @@ interface BurnItem {
   percentUsed: number;
 }
 
-export function YearlyBudgetBurn({ data, year }: { data: BurnItem[]; year: number }) {
+export function YearlyBudgetBurn({ data, year, monthsWithData }: { data: BurnItem[]; year: number; monthsWithData: number }) {
   const grouped: Record<string, BurnItem[]> = {};
   for (const item of data) {
     if (!grouped[item.group]) grouped[item.group] = [];
     grouped[item.group].push(item);
   }
 
-  const currentMonth = new Date().getMonth() + 1;
-  const expectedPct = (currentMonth / 12) * 100;
+  const expectedPct = (monthsWithData / 12) * 100;
 
   return (
     <Card>
@@ -55,7 +54,7 @@ export function YearlyBudgetBurn({ data, year }: { data: BurnItem[]; year: numbe
         <CardTitle>
           Annual Budget Burn — {year}
           <span className="ml-3 text-xs font-normal text-muted-foreground">
-            Expected pace: {expectedPct.toFixed(0)}% ({currentMonth}/12 months)
+            Expected pace: {expectedPct.toFixed(0)}% ({monthsWithData}/12 months)
           </span>
         </CardTitle>
       </CardHeader>

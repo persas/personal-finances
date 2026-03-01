@@ -82,7 +82,7 @@ export default function YearlyPage({ params }: { params: Promise<{ profile: stri
 
         <MonthlyGroupTrend data={data.monthlyByGroup} />
 
-        <YearlyBudgetBurn data={data.annualBudgetBurn} year={year} />
+        <YearlyBudgetBurn data={data.annualBudgetBurn} year={year} monthsWithData={data.kpis.monthsWithData} />
 
         <MonthlyTrend data={data.monthlyTrend} />
 
