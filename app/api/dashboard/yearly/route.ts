@@ -31,16 +31,19 @@ export async function GET(req: NextRequest) {
   );
 
   // KPIs — separate true expenses from savings/investments
-  const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit');
-  const income = transactions.filter(t => t.type === 'income');
+  // Reimbursements classified as income should reduce expenses, not inflate income
+  const isReimbursement = (t: Transaction) => t.type === 'income' && t.category === 'Reimbursement';
+  const creditOrReimbursement = (t: Transaction) => t.type === 'credit' || isReimbursement(t);
+  const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit' || isReimbursement(t));
+  const income = transactions.filter(t => t.type === 'income' && !isReimbursement(t));
 
   const trueExpenses = expenses.filter(t => !SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
   const savingsInvestmentTxs = expenses.filter(t => SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
 
   const totalExpenses = trueExpenses.reduce((sum, t) =>
-    sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount)), 0);
+    sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount)), 0);
   const totalSavingsInvestments = savingsInvestmentTxs.reduce((sum, t) =>
-    sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount)), 0);
+    sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount)), 0);
   const totalIncome = income.reduce((sum, t) => sum + Number(t.amount), 0);
   const netSavings = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
@@ -53,10 +56,10 @@ export async function GET(req: NextRequest) {
   for (let m = 1; m <= 12; m++) monthlyMap[m] = { income: 0, expenses: 0 };
 
   for (const tx of transactions) {
-    if (tx.type === 'income') {
+    if (tx.type === 'income' && !isReimbursement(tx)) {
       monthlyMap[tx.month].income += Number(tx.amount);
-    } else if ((tx.type === 'expense' || tx.type === 'credit') && !SAVINGS_INVESTMENT_GROUPS.has(tx.budget_group || '')) {
-      const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
+    } else if ((tx.type === 'expense' || tx.type === 'credit' || isReimbursement(tx)) && !SAVINGS_INVESTMENT_GROUPS.has(tx.budget_group || '')) {
+      const amount = creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount);
       monthlyMap[tx.month].expenses += amount;
     }
   }
@@ -72,7 +75,7 @@ export async function GET(req: NextRequest) {
     const annualBudget = Number(bl.annual_amount) || Number(bl.monthly_amount) * 12;
     const spentYTD = expenses
       .filter(tx => tx.budget_group === bl.budget_group && tx.budget_line === bl.line_name)
-      .reduce((sum, tx) => sum + (tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount)), 0);
+      .reduce((sum, tx) => sum + (creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount)), 0);
 
     return {
       group: bl.budget_group,
@@ -121,7 +124,7 @@ export async function GET(req: NextRequest) {
   for (const tx of expenses) {
     const group = tx.budget_group;
     if (group && monthlyGroupMap[tx.month] && monthlyGroupMap[tx.month][group] !== undefined) {
-      const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
+      const amount = creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount);
       monthlyGroupMap[tx.month][group] += amount;
     }
   }
@@ -135,7 +138,7 @@ export async function GET(req: NextRequest) {
   const catMap: Record<string, { total: number; count: number }> = {};
   for (const tx of trueExpenses) {
     const cat = tx.category || 'Uncategorized';
-    const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
+    const amount = creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount);
     if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
     catMap[cat].total += amount;
     catMap[cat].count += 1;

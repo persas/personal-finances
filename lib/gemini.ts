@@ -31,8 +31,8 @@ For EACH transaction row in the CSV, return a JSON object with these exact field
 Rules:
 - Transfers between the user's own bank accounts → type "transfer", budget_group "Transfer"
 - Internal savings movements (e.g. Revolut Flexible Cash Funds) → type "internal", budget_group "Internal"
-- Credits, refunds, cashback → type "credit"
-- Salary, freelance income, reimbursements received → type "income", budget_group "Income"
+- Credits, refunds, cashback, reimbursements for returned items → type "credit". Keep the SAME budget_group and budget_line as the original expense (e.g. a refund for a Guilt-Free shopping purchase should be budget_group "Guilt-Free", budget_line "GF: Shopping")
+- Salary, freelance income → type "income", budget_group "Income"
 - Amounts must ALWAYS be positive numbers. The "type" field indicates the direction.
 - Auto-detect the bank from CSV format/headers (BBVA, Revolut, AMEX, CaixaBank, ING, etc.)
 - IMPORTANT: There is no Bankinter account. If the CSV looks like it could be Bankinter, it is actually BBVA. Always use "BBVA" as the source, never "Bankinter".

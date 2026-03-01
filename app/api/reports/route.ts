@@ -27,18 +27,21 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
     profileId, year
   );
 
-  const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit');
-  const income = transactions.filter(t => t.type === 'income');
+  // Reimbursements classified as income should reduce expenses, not inflate income
+  const isReimbursement = (t: Transaction) => t.type === 'income' && t.category === 'Reimbursement';
+  const creditOrReimbursement = (t: Transaction) => t.type === 'credit' || isReimbursement(t);
+  const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit' || isReimbursement(t));
+  const income = transactions.filter(t => t.type === 'income' && !isReimbursement(t));
 
   const trueExpenses = expenses.filter(t => !SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
   const savingsInvestmentTxs = expenses.filter(t => SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
 
   const totalExpenses = trueExpenses.reduce((sum, t) => {
-    return sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount));
+    return sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount));
   }, 0);
 
   const totalSavingsInvestments = savingsInvestmentTxs.reduce((sum, t) => {
-    return sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount));
+    return sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount));
   }, 0);
 
   const totalIncome = income.reduce((sum, t) => sum + Number(t.amount), 0);
@@ -61,7 +64,7 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
   for (const tx of expenses) {
     const bg = tx.budget_group || '';
     const bl = tx.budget_line || '';
-    const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
+    const amount = creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount);
 
     if (bg && bg !== 'Income' && bg !== 'Transfer' && bg !== 'Internal') {
       groupActuals[bg] = (groupActuals[bg] || 0) + amount;
@@ -87,7 +90,7 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
   const catMap: Record<string, { total: number; count: number }> = {};
   for (const tx of trueExpenses) {
     const cat = tx.category || 'Uncategorized';
-    const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
+    const amount = creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount);
     if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
     catMap[cat].total += amount;
     catMap[cat].count += 1;
