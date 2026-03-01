@@ -1,5 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
-import type { BudgetLine, ParsedTransaction, DashboardData } from './types';
+import type { BudgetLine, ParsedTransaction, DashboardData, Transaction } from './types';
+
+export interface RecategorizeChange {
+  id: number;
+  category: string;
+  budget_group: string;
+  budget_line: string;
+  type: string;
+  notes: string;
+}
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -184,4 +193,84 @@ Reglas:
   }
 
   return text;
+}
+
+export async function recategorizeTransactions(
+  transactions: Transaction[],
+  hint: string,
+  budgetLines: BudgetLine[],
+  profileName: string
+): Promise<RecategorizeChange[]> {
+  const budgetContext = budgetLines
+    .map(b => `  - [${b.budget_group}] ${b.line_name}: ${b.monthly_amount}€/month`)
+    .join('\n');
+
+  const txContext = transactions
+    .map(tx => JSON.stringify({
+      id: tx.id,
+      date: tx.date,
+      description: tx.description,
+      amount: tx.amount,
+      type: tx.type,
+      source: tx.source,
+      category: tx.category,
+      budget_group: tx.budget_group,
+      budget_line: tx.budget_line,
+      notes: tx.notes,
+    }))
+    .join('\n');
+
+  const prompt = `You are a personal finance assistant for ${profileName}. The user wants to recategorize some transactions based on this instruction:
+
+"${hint}"
+
+The user's budget structure for reference:
+${budgetContext}
+
+Here are the current transactions (one JSON object per line):
+${txContext}
+
+Based on the user's instruction, determine which transactions should be recategorized. Return ONLY the transactions that need changes, with their updated fields.
+
+For each changed transaction, return a JSON object with:
+- id: the transaction id (MUST match an existing id from above)
+- category: new category
+- budget_group: one of "Fixed Costs" | "Savings Goals" | "Guilt-Free" | "Investments" | "Pre-Tax" | "Income" | "Transfer" | "Internal"
+- budget_line: matching line name from the budget structure, or "—" if no match
+- type: one of "expense" | "income" | "transfer" | "internal" | "credit"
+- notes: updated notes (keep existing notes if still relevant, append context about the recategorization)
+
+Rules:
+- Only return transactions that actually change. If a transaction already matches the user's instruction, skip it.
+- Preserve the existing type unless the user's instruction explicitly changes it.
+- Use the budget structure above to assign the correct budget_group and budget_line.
+- For Guilt-Free expenses, use specific budget_lines: "GF: Transportation", "GF: Dining & Drinks", "GF: Entertainment", "GF: Shopping", "GF: Travel", "GF: Personal Care", "GF: Hobbies", or "Guilt-Free Spending" as fallback.
+
+Return ONLY a valid JSON array. No markdown fences, no explanation text, just the JSON array. If no transactions need changes, return an empty array [].`;
+
+  console.log(`[Gemini] Recategorizing ${transactions.length} transactions for ${profileName}...`);
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
+    config: {
+      temperature: 0.1,
+      maxOutputTokens: 65536,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const text = response.text?.trim() || '[]';
+  console.log(`[Gemini] Recategorize response length: ${text.length} chars`);
+
+  try {
+    const changes = JSON.parse(text) as RecategorizeChange[];
+    console.log(`[Gemini] Proposed ${changes.length} changes`);
+    // Validate that all returned IDs exist in the input
+    const validIds = new Set(transactions.map(t => t.id));
+    return changes.filter(c => validIds.has(c.id));
+  } catch (e) {
+    console.error('[Gemini] Failed to parse recategorize response:', e);
+    throw new Error(`Failed to parse Gemini response. Raw start: ${text.substring(0, 300)}`);
+  }
 }
