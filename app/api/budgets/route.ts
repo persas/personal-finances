@@ -44,8 +44,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Budget create error:', error);
+    const msg = error instanceof Error ? error.message : '';
+    if (msg.includes('UNIQUE constraint failed')) {
+      return NextResponse.json(
+        { error: 'A budget line with this name already exists in this group' },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create budget line' },
+      { error: msg || 'Failed to create budget line' },
       { status: 500 }
     );
   }

@@ -19,7 +19,7 @@ export function initSchema(db: Database.Database): void {
       annual_amount REAL DEFAULT 0,
       is_annual INTEGER DEFAULT 0,
       year INTEGER NOT NULL,
-      UNIQUE(profile_id, line_name, year)
+      UNIQUE(profile_id, budget_group, line_name, year)
     )
   `);
 
@@ -145,7 +145,32 @@ export function initSchema(db: Database.Database): void {
 
   seedProfiles(db);
   seedBudgets(db);
+  migrateBudgetUniqueConstraint(db);
   ensureGuiltFreeSubcategories(db);
+}
+
+function migrateBudgetUniqueConstraint(db: Database.Database): void {
+  // Check if the unique constraint already includes budget_group by attempting a probe
+  const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='budget_lines'").get() as { sql: string } | undefined;
+  if (!tableInfo || tableInfo.sql.includes('UNIQUE(profile_id, budget_group, line_name, year)')) return;
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS budget_lines_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id TEXT NOT NULL,
+      budget_group TEXT NOT NULL,
+      line_name TEXT NOT NULL,
+      monthly_amount REAL DEFAULT 0,
+      annual_amount REAL DEFAULT 0,
+      is_annual INTEGER DEFAULT 0,
+      year INTEGER NOT NULL,
+      UNIQUE(profile_id, budget_group, line_name, year)
+    )
+  `);
+  db.exec(`INSERT INTO budget_lines_new SELECT * FROM budget_lines`);
+  db.exec(`DROP TABLE budget_lines`);
+  db.exec(`ALTER TABLE budget_lines_new RENAME TO budget_lines`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_budget_profile ON budget_lines(profile_id, year)`);
 }
 
 function seedProfiles(db: Database.Database): void {
