@@ -104,26 +104,33 @@ export function BudgetVsActual({ groups, lines }: Props) {
                     </TableRow>
                   );
                 }
+                const isTrackingOnly = line.budget === 0;
                 const pct = line.budget > 0 ? Math.min((line.actual / line.budget) * 100, 200) : 0;
-                const isOver = line.delta > 5;
-                const isUnder = line.delta < -5;
+                const isOver = !isTrackingOnly && line.delta > 5;
+                const isUnder = !isTrackingOnly && line.delta < -5;
                 const groupColor = getBudgetGroupColor(line.group);
+                // Hide tracking-only lines with no spending
+                if (isTrackingOnly && line.actual === 0) continue;
                 rows.push(
                   <TableRow key={`${line.group}-${line.line}`}>
                     <TableCell className="pl-6">{line.line}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">{fmt(line.budget)}&euro;</TableCell>
+                    <TableCell className="text-right font-mono text-sm">{isTrackingOnly ? <span className="text-muted-foreground">—</span> : <>{fmt(line.budget)}&euro;</>}</TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold">{fmt(line.actual)}&euro;</TableCell>
                     <TableCell className={`text-right font-mono text-sm font-semibold ${isOver ? 'text-red-600 dark:text-red-400' : isUnder ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                      {line.delta >= 0 ? '+' : ''}{fmt(line.delta)}&euro;
+                      {isTrackingOnly ? '' : <>{line.delta >= 0 ? '+' : ''}{fmt(line.delta)}&euro;</>}
                     </TableCell>
                     <TableCell>
-                      <ColoredProgress
-                        value={Math.min(pct, 100)}
-                        color={isOver ? '#ef4444' : groupColor}
-                      />
+                      {isTrackingOnly ? null : (
+                        <ColoredProgress
+                          value={Math.min(pct, 100)}
+                          color={isOver ? '#ef4444' : groupColor}
+                        />
+                      )}
                     </TableCell>
                     <TableCell>
-                      {line.actual === 0 && line.budget > 0 ? (
+                      {isTrackingOnly ? (
+                        <span className="inline-flex items-center rounded-full bg-violet-500/10 px-2 py-0.5 text-xs font-semibold text-violet-600 dark:text-violet-400">Tracking</span>
+                      ) : line.actual === 0 && line.budget > 0 ? (
                         <span className="text-xs text-muted-foreground">N/A</span>
                       ) : isOver ? (
                         <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">Over</span>
