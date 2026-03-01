@@ -18,7 +18,7 @@ interface SankeyData {
 
 interface SNode {
   name: string;
-  category: 'income' | 'group' | 'line' | 'remainder';
+  category: 'income' | 'deficit' | 'group' | 'line' | 'remainder';
   group?: string;
 }
 
@@ -46,26 +46,44 @@ export function ExpenseSankey({ data }: { data: SankeyData }) {
     const linkList: SLink[] = [];
     const nodeIndex = new Map<string, number>();
 
-    const totalSpent = data.budgetGroupSummary
-      .filter(g => g.spentYTD > 0)
-      .reduce((sum, g) => sum + g.spentYTD, 0);
+    const groups = data.budgetGroupSummary.filter(g => g.spentYTD > 0);
+    const totalSpent = groups.reduce((sum, g) => sum + g.spentYTD, 0);
+    const isOverspending = totalSpent > data.totalIncome;
     const remainder = Math.max(0, data.totalIncome - totalSpent);
+    const deficit = Math.max(0, totalSpent - data.totalIncome);
 
-    // Node 0: Income (full amount)
+    // Node 0: Income
     nodeList.push({ name: 'Ingresos', category: 'income' });
     nodeIndex.set('income', 0);
 
+    // Node 1: Deficit (only if spending > income)
+    if (isOverspending && deficit > 0) {
+      const idx = nodeList.length;
+      nodeList.push({ name: 'Déficit', category: 'deficit' });
+      nodeIndex.set('deficit', idx);
+    }
+
     // Group nodes (level 1) — only groups with spending
-    const groups = data.budgetGroupSummary.filter(g => g.spentYTD > 0);
     for (const g of groups) {
       const idx = nodeList.length;
       nodeList.push({ name: g.group, category: 'group' });
       nodeIndex.set(`group:${g.group}`, idx);
-      linkList.push({ source: 0, target: idx, value: g.spentYTD });
+
+      if (isOverspending && deficit > 0) {
+        // Split: proportion from income, rest from deficit
+        const fromIncome = g.spentYTD * (data.totalIncome / totalSpent);
+        const fromDeficit = g.spentYTD - fromIncome;
+        linkList.push({ source: 0, target: idx, value: Math.max(fromIncome, 0.01) });
+        if (fromDeficit > 0) {
+          linkList.push({ source: nodeIndex.get('deficit')!, target: idx, value: fromDeficit });
+        }
+      } else {
+        linkList.push({ source: 0, target: idx, value: g.spentYTD });
+      }
     }
 
-    // Remainder node — unspent income
-    if (remainder > 0) {
+    // Remainder node — unspent income (only when not overspending)
+    if (!isOverspending && remainder > 0) {
       const idx = nodeList.length;
       nodeList.push({ name: 'Remanente', category: 'remainder' });
       nodeIndex.set('remainder', idx);
@@ -102,17 +120,24 @@ export function ExpenseSankey({ data }: { data: SankeyData }) {
       links: linkList.map(l => ({ ...l })),
     });
 
-    return { ...result, height };
+    return { ...result, height, isOverspending, deficit };
   }, [data]);
 
   if (!layout) return null;
 
-  const { nodes, links, height } = layout;
+  const { nodes, links, height, isOverspending, deficit } = layout;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Expense Flow — YTD</CardTitle>
+        <div className="flex items-center gap-3">
+          <CardTitle>Expense Flow — YTD</CardTitle>
+          {isOverspending && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-600 dark:text-red-400">
+              Déficit: {fmt(deficit)}&euro;
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -126,7 +151,9 @@ export function ExpenseSankey({ data }: { data: SankeyData }) {
               const source = link.source as SankeyNode<SNode, SLink>;
               const target = link.target as SankeyNode<SNode, SLink>;
               let color: string;
-              if (target.category === 'remainder') {
+              if (source.category === 'deficit') {
+                color = '#ef4444';
+              } else if (target.category === 'remainder') {
                 color = '#10b981';
               } else if (source.category === 'income') {
                 color = getBudgetGroupColor(target.name);
@@ -162,6 +189,8 @@ export function ExpenseSankey({ data }: { data: SankeyData }) {
               let color: string;
               if (n.category === 'income') {
                 color = '#10b981';
+              } else if (n.category === 'deficit') {
+                color = '#ef4444';
               } else if (n.category === 'remainder') {
                 color = '#10b981';
               } else if (n.category === 'group') {
@@ -170,7 +199,7 @@ export function ExpenseSankey({ data }: { data: SankeyData }) {
                 color = getBudgetGroupColor(n.group ?? '');
               }
 
-              // Labels: income & group on the left of the node, line & remainder on the right
+              // Labels: income, deficit & group on the left of the node, line & remainder on the right
               const isRightLabel = n.category === 'line' || n.category === 'remainder';
               const labelX = isRightLabel ? x1 + 6 : x0 - 6;
               const anchor = isRightLabel ? 'start' : 'end';
@@ -192,9 +221,13 @@ export function ExpenseSankey({ data }: { data: SankeyData }) {
                     dy="0.35em"
                     textAnchor={anchor}
                     className="fill-foreground"
-                    style={{ fontSize }}
+                    style={{
+                      fontSize,
+                      fill: n.category === 'deficit' ? '#ef4444' : undefined,
+                      fontWeight: n.category === 'deficit' ? 600 : undefined,
+                    }}
                   >
-                    {n.name} ({fmt(n.value ?? 0)}&euro;)
+                    {n.name} ({fmt(n.category === 'income' ? data.totalIncome : (n.value ?? 0))}&euro;)
                   </text>
                 </g>
               );

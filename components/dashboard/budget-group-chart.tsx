@@ -163,7 +163,7 @@ export function BudgetGroupChart({ data, transactions }: Props) {
   const drawerTxns = useMemo(() => {
     if (!drawerGroup || !transactions) return [];
     const isReimbursement = (t: Transaction) =>
-      t.type === 'income' && t.category === 'Reimbursement';
+      t.type === 'income' && (t.category === 'Reimbursement' || (!!t.budget_group && t.budget_group !== 'Income'));
     return transactions.filter(
       t =>
         t.budget_group === drawerGroup.group &&

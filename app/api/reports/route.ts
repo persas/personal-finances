@@ -27,28 +27,13 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
     profileId, year
   );
 
-  // Reimbursements classified as income should reduce expenses, not inflate income
-  const isReimbursement = (t: Transaction) => t.type === 'income' && t.category === 'Reimbursement';
+  // Reimbursements: income transactions assigned to a budget group reduce that group's spending
+  const isReimbursement = (t: Transaction) =>
+    t.type === 'income' && (t.category === 'Reimbursement' || (!!t.budget_group && t.budget_group !== 'Income'));
   const creditOrReimbursement = (t: Transaction) => t.type === 'credit' || isReimbursement(t);
   const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit' || isReimbursement(t));
   const income = transactions.filter(t => t.type === 'income' && !isReimbursement(t));
-
-  const trueExpenses = expenses.filter(t => !SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
-  const savingsInvestmentTxs = expenses.filter(t => SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
-
-  const totalExpenses = trueExpenses.reduce((sum, t) => {
-    return sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount));
-  }, 0);
-
-  const totalSavingsInvestments = savingsInvestmentTxs.reduce((sum, t) => {
-    return sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount));
-  }, 0);
-
   const totalIncome = income.reduce((sum, t) => sum + Number(t.amount), 0);
-  const netSavings = totalIncome - totalExpenses;
-  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const dailyAvgSpend = totalExpenses / daysInMonth;
 
   const groupBudgets: Record<string, number> = {};
   const groupActuals: Record<string, number> = {};
@@ -75,6 +60,20 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
     }
   }
 
+  // KPIs derived from group actuals for consistency
+  const totalExpenses = Object.entries(groupActuals)
+    .filter(([group]) => !SAVINGS_INVESTMENT_GROUPS.has(group))
+    .reduce((sum, [, actual]) => sum + actual, 0);
+
+  const totalSavingsInvestments = Object.entries(groupActuals)
+    .filter(([group]) => SAVINGS_INVESTMENT_GROUPS.has(group))
+    .reduce((sum, [, actual]) => sum + actual, 0);
+
+  const netSavings = totalIncome - totalExpenses;
+  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dailyAvgSpend = totalExpenses / daysInMonth;
+
   const groups: BudgetGroupSummary[] = Object.keys(groupBudgets).map(group => ({
     group,
     budget: groupBudgets[group],
@@ -85,6 +84,11 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
   const lines: BudgetLineSummary[] = Object.entries(lineBudgets).map(([key, val]) => {
     const [, line] = key.split('::');
     return { group: val.group, line, budget: val.budget, actual: val.actual, delta: val.actual - val.budget };
+  });
+
+  const trueExpenses = expenses.filter(t => {
+    const bg = t.budget_group || '';
+    return bg && !SAVINGS_INVESTMENT_GROUPS.has(bg) && bg !== 'Income' && bg !== 'Transfer' && bg !== 'Internal';
   });
 
   const catMap: Record<string, { total: number; count: number }> = {};
