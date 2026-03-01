@@ -40,7 +40,7 @@ interface Props {
 }
 
 const isReimbursement = (t: Transaction) =>
-  t.type === 'income' && t.category === 'Reimbursement';
+  t.type === 'income' && (t.category === 'Reimbursement' || (!!t.budget_group && t.budget_group !== 'Income'));
 
 const isExpenseOrCredit = (t: Transaction) =>
   t.type === 'expense' || t.type === 'credit' || isReimbursement(t);

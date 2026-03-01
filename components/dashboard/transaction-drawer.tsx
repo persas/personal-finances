@@ -33,7 +33,7 @@ export function TransactionDrawer({
   groupColor,
 }: TransactionDrawerProps) {
   const isCredit = (t: Transaction) =>
-    t.type === 'credit' || (t.type === 'income' && t.category === 'Reimbursement');
+    t.type === 'credit' || (t.type === 'income' && (t.category === 'Reimbursement' || (!!t.budget_group && t.budget_group !== 'Income')));
 
   const expenses = transactions.filter(t => !isCredit(t));
   const reimbursements = transactions.filter(t => isCredit(t));
@@ -45,7 +45,7 @@ export function TransactionDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-hidden">
+      <SheetContent side="right" className="w-full sm:max-w-xl overflow-hidden">
         <SheetHeader className="shrink-0">
           <SheetTitle style={{ color: groupColor }}>{title}</SheetTitle>
           {subtitle && <SheetDescription>{subtitle}</SheetDescription>}
@@ -68,36 +68,36 @@ export function TransactionDrawer({
           </div>
         </SheetHeader>
         <ScrollArea className="flex-1 min-h-0 px-4 pb-4">
-          <div className="space-y-1">
+          <div className="space-y-1 overflow-x-hidden">
             {sorted.map(tx => {
               const isCreditTx = isCredit(tx);
               const catColor = getCategoryColor(tx.category || '');
               return (
                 <div
                   key={tx.id}
-                  className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm"
+                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm overflow-hidden"
                 >
-                  <span className="w-[72px] shrink-0 font-mono text-xs text-muted-foreground">
+                  <span className="w-[60px] shrink-0 font-mono text-xs text-muted-foreground">
                     {tx.date.slice(8)}/{tx.date.slice(5, 7)}
                   </span>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <p className="truncate">{tx.description}</p>
                     <div className="mt-0.5 flex gap-1.5">
                       <span
-                        className="inline-flex items-center rounded-full border px-1.5 py-0 text-[10px]"
+                        className="inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] truncate max-w-[120px]"
                         style={{ borderColor: catColor + '44', color: catColor }}
                       >
                         {tx.category}
                       </span>
                       {tx.budget_line && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
                           {tx.budget_line}
                         </span>
                       )}
                     </div>
                   </div>
                   <span
-                    className={`shrink-0 font-mono text-sm font-semibold ${
+                    className={`shrink-0 font-mono text-sm font-semibold tabular-nums text-right ${
                       isCreditTx
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-red-600 dark:text-red-400'

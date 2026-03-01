@@ -30,45 +30,17 @@ export async function GET(req: NextRequest) {
     profileId, year
   );
 
-  // KPIs — separate true expenses from savings/investments
-  // Reimbursements classified as income should reduce expenses, not inflate income
-  const isReimbursement = (t: Transaction) => t.type === 'income' && t.category === 'Reimbursement';
+  // Reimbursements: income transactions assigned to a budget group reduce that group's spending
+  const isReimbursement = (t: Transaction) =>
+    t.type === 'income' && (t.category === 'Reimbursement' || (!!t.budget_group && t.budget_group !== 'Income'));
   const creditOrReimbursement = (t: Transaction) => t.type === 'credit' || isReimbursement(t);
+
   const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit' || isReimbursement(t));
   const income = transactions.filter(t => t.type === 'income' && !isReimbursement(t));
-
-  const trueExpenses = expenses.filter(t => !SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
-  const savingsInvestmentTxs = expenses.filter(t => SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
-
-  const totalExpenses = trueExpenses.reduce((sum, t) =>
-    sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount)), 0);
-  const totalSavingsInvestments = savingsInvestmentTxs.reduce((sum, t) =>
-    sum + (creditOrReimbursement(t) ? -Number(t.amount) : Number(t.amount)), 0);
   const totalIncome = income.reduce((sum, t) => sum + Number(t.amount), 0);
-  const netSavings = totalIncome - totalExpenses;
-  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
   // Months with data
   const monthsWithData = new Set(transactions.map(t => t.month)).size;
-
-  // Monthly trend (expenses exclude savings/investments)
-  const monthlyMap: Record<number, { income: number; expenses: number }> = {};
-  for (let m = 1; m <= 12; m++) monthlyMap[m] = { income: 0, expenses: 0 };
-
-  for (const tx of transactions) {
-    if (tx.type === 'income' && !isReimbursement(tx)) {
-      monthlyMap[tx.month].income += Number(tx.amount);
-    } else if ((tx.type === 'expense' || tx.type === 'credit' || isReimbursement(tx)) && !SAVINGS_INVESTMENT_GROUPS.has(tx.budget_group || '')) {
-      const amount = creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount);
-      monthlyMap[tx.month].expenses += amount;
-    }
-  }
-
-  const monthlyTrend = Object.entries(monthlyMap).map(([month, data]) => ({
-    month: Number(month),
-    income: data.income,
-    expenses: data.expenses,
-  }));
 
   // Annual budget burn per line
   const annualBudgetBurn = budgetLines.map(bl => {
@@ -111,6 +83,37 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // KPIs derived from group actuals for consistency
+  const totalExpenses = Object.entries(groupMap)
+    .filter(([group]) => !SAVINGS_INVESTMENT_GROUPS.has(group))
+    .reduce((sum, [, gData]) => sum + gData.spent, 0);
+
+  const totalSavingsInvestments = Object.entries(groupMap)
+    .filter(([group]) => SAVINGS_INVESTMENT_GROUPS.has(group))
+    .reduce((sum, [, gData]) => sum + gData.spent, 0);
+
+  const netSavings = totalIncome - totalExpenses;
+  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
+
+  // Monthly trend (expenses exclude savings/investments)
+  const monthlyMap: Record<number, { income: number; expenses: number }> = {};
+  for (let m = 1; m <= 12; m++) monthlyMap[m] = { income: 0, expenses: 0 };
+
+  for (const tx of transactions) {
+    if (tx.type === 'income' && !isReimbursement(tx)) {
+      monthlyMap[tx.month].income += Number(tx.amount);
+    } else if ((tx.type === 'expense' || tx.type === 'credit' || isReimbursement(tx)) && !SAVINGS_INVESTMENT_GROUPS.has(tx.budget_group || '')) {
+      const amount = creditOrReimbursement(tx) ? -Number(tx.amount) : Number(tx.amount);
+      monthlyMap[tx.month].expenses += amount;
+    }
+  }
+
+  const monthlyTrend = Object.entries(monthlyMap).map(([month, data]) => ({
+    month: Number(month),
+    income: data.income,
+    expenses: data.expenses,
+  }));
+
   // Monthly spending by budget group
   const budgetGroupNames = ['Fixed Costs', 'Savings Goals', 'Guilt-Free', 'Investments', 'Pre-Tax'];
   const monthlyGroupMap: Record<number, Record<string, number>> = {};
@@ -135,6 +138,11 @@ export async function GET(req: NextRequest) {
   }));
 
   // Category breakdown YTD (true expenses only, not savings/investments)
+  const trueExpenses = expenses.filter(t => {
+    const bg = t.budget_group || '';
+    return bg && !SAVINGS_INVESTMENT_GROUPS.has(bg) && bg !== 'Income' && bg !== 'Transfer' && bg !== 'Internal';
+  });
+
   const catMap: Record<string, { total: number; count: number }> = {};
   for (const tx of trueExpenses) {
     const cat = tx.category || 'Uncategorized';
