@@ -108,7 +108,8 @@ export default function BudgetPage({ params }: { params: Promise<{ profile: stri
       setDialogOpen(false);
       fetchBudgets();
     } else {
-      toast.error('Failed to save');
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error || 'Failed to save');
     }
   };
 
