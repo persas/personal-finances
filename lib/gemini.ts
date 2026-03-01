@@ -122,8 +122,9 @@ Aquí están los datos financieros del mes:
 
 **Métricas clave:**
 - Ingresos totales: ${kpis.totalIncome.toFixed(2)}€
-- Gastos totales: ${kpis.totalExpenses.toFixed(2)}€
-- Ahorro neto: ${kpis.netSavings.toFixed(2)}€
+- Gastos totales (sin contar ahorro/inversión): ${kpis.totalExpenses.toFixed(2)}€
+- Ahorro e inversión: ${kpis.totalSavingsInvestments.toFixed(2)}€
+- Disponible tras gastos e inversión: ${(kpis.totalIncome - kpis.totalExpenses - kpis.totalSavingsInvestments).toFixed(2)}€
 - Tasa de ahorro: ${kpis.savingsRate.toFixed(1)}%
 - Gasto medio diario: ${kpis.dailyAvgSpend.toFixed(2)}€
 - Número de transacciones: ${kpis.transactionCount}
@@ -160,6 +161,7 @@ Reglas:
 - El informe completo debe leerse en menos de 3 minutos
 - Escribe cantidades con símbolo €
 - Un delta positivo significa por encima del presupuesto (malo para gastos), delta negativo significa por debajo (bueno)
+- IMPORTANTE: "Gastos totales" NO incluye ahorro e inversión. "Ahorro e inversión" se muestra aparte como algo positivo (dinero ahorrado/invertido). No confundas ahorro con gasto.
 - No uses headers de markdown más grandes que h3 (###)
 - Usa los emojis SOLO en los títulos de las secciones como se indica arriba`;
 

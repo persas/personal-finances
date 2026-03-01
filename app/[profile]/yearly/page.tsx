@@ -71,6 +71,7 @@ export default function YearlyPage({ params }: { params: Promise<{ profile: stri
           data={{
             totalIncome: data.kpis.totalIncome,
             totalExpenses: data.kpis.totalExpenses,
+            totalSavingsInvestments: data.kpis.totalSavingsInvestments,
             netSavings: data.kpis.netSavings,
             savingsRate: data.kpis.savingsRate,
             dailyAvgSpend: data.kpis.totalExpenses / (data.kpis.monthsWithData * 30),

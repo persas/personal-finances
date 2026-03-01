@@ -72,6 +72,7 @@ export interface DashboardData {
   kpis: {
     totalIncome: number;
     totalExpenses: number;
+    totalSavingsInvestments: number;
     netSavings: number;
     savingsRate: number;
     dailyAvgSpend: number;
@@ -112,6 +113,7 @@ export interface YearlyDashboardData {
   kpis: {
     totalIncome: number;
     totalExpenses: number;
+    totalSavingsInvestments: number;
     netSavings: number;
     savingsRate: number;
     monthsWithData: number;

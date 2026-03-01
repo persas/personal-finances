@@ -6,6 +6,13 @@ export const BUDGET_GROUPS = [
   'Pre-Tax',
 ] as const;
 
+// Budget groups that represent saving/investing, NOT spending.
+// These are excluded from "Total Expenses" KPIs and tracked separately.
+export const SAVINGS_INVESTMENT_GROUPS: ReadonlySet<string> = new Set([
+  'Savings Goals',
+  'Investments',
+]);
+
 export const TRANSACTION_TYPES = [
   'expense',
   'income',

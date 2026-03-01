@@ -89,6 +89,7 @@ export default function DashboardPage({ params }: { params: Promise<{ profile: s
           <IncomeVsExpenses
             totalIncome={data.kpis.totalIncome}
             totalExpenses={data.kpis.totalExpenses}
+            totalSavingsInvestments={data.kpis.totalSavingsInvestments}
             netSavings={data.kpis.netSavings}
           />
           <CategoryDonut data={data.categoryBreakdown} />
