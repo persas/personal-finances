@@ -10,6 +10,7 @@ import { MonthlyTrend } from '@/components/dashboard/monthly-trend';
 import { YearlyBudgetBurn } from '@/components/dashboard/yearly-budget-burn';
 import { BudgetGroupChart } from '@/components/dashboard/budget-group-chart';
 import { MonthlyGroupTrend } from '@/components/dashboard/monthly-group-trend';
+import { ExpenseSankey } from '@/components/dashboard/expense-sankey';
 import { Loader2, CalendarDays } from 'lucide-react';
 import type { YearlyDashboardData } from '@/lib/types';
 
@@ -79,7 +80,15 @@ export default function YearlyPage({ params }: { params: Promise<{ profile: stri
           }}
         />
 
-        <BudgetGroupChart data={data.budgetGroupSummary} />
+        <BudgetGroupChart data={data.budgetGroupSummary} transactions={data.transactions} />
+
+        <ExpenseSankey
+          data={{
+            budgetGroupSummary: data.budgetGroupSummary,
+            annualBudgetBurn: data.annualBudgetBurn,
+            totalIncome: data.kpis.totalIncome,
+          }}
+        />
 
         <MonthlyGroupTrend data={data.monthlyByGroup} />
 

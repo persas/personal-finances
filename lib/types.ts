@@ -133,6 +133,7 @@ export interface YearlyDashboardData {
   budgetGroupSummary: BudgetGroupYearlySummary[];
   monthlyByGroup: MonthlyByGroupEntry[];
   categoryBreakdown: CategoryTotal[];
+  transactions: Transaction[];
 }
 
 export interface BudgetGroupYearlySummary {

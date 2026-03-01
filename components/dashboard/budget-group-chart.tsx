@@ -1,19 +1,26 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { getBudgetGroupColor } from '@/lib/categories';
-import type { BudgetGroupYearlySummary } from '@/lib/types';
+import { TransactionDrawer } from '@/components/dashboard/transaction-drawer';
+import type { BudgetGroupYearlySummary, Transaction } from '@/lib/types';
 
 function fmt(n: number): string {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-interface Props {
-  data: BudgetGroupYearlySummary[];
+function fmtDec(n: number): string {
+  return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
+interface Props {
+  data: BudgetGroupYearlySummary[];
+  transactions?: Transaction[];
+}
+
+function GaugeDonut({ item, onClick }: { item: BudgetGroupYearlySummary; onClick?: () => void }) {
   const groupColor = getBudgetGroupColor(item.group);
   const pct = Math.min(item.percentUsed, 150);
   const pace = item.expectedPace;
@@ -38,7 +45,10 @@ function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
   ] : null;
 
   return (
-    <div className="flex flex-col items-center">
+    <div
+      className={`flex flex-col items-center ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       <div className="relative" style={{ width: 140, height: 140 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -146,10 +156,30 @@ function GaugeDonut({ item }: { item: BudgetGroupYearlySummary }) {
   );
 }
 
-export function BudgetGroupChart({ data }: Props) {
+export function BudgetGroupChart({ data, transactions }: Props) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerGroup, setDrawerGroup] = useState<BudgetGroupYearlySummary | null>(null);
+
+  const drawerTxns = useMemo(() => {
+    if (!drawerGroup || !transactions) return [];
+    const isReimbursement = (t: Transaction) =>
+      t.type === 'income' && t.category === 'Reimbursement';
+    return transactions.filter(
+      t =>
+        t.budget_group === drawerGroup.group &&
+        (t.type === 'expense' || t.type === 'credit' || isReimbursement(t)),
+    );
+  }, [drawerGroup, transactions]);
+
   if (!data || data.length === 0) return null;
 
   const expectedPace = data[0]?.expectedPace ?? 0;
+
+  function handleGroupClick(item: BudgetGroupYearlySummary) {
+    if (!transactions) return;
+    setDrawerGroup(item);
+    setDrawerOpen(true);
+  }
 
   return (
     <Card>
@@ -164,7 +194,11 @@ export function BudgetGroupChart({ data }: Props) {
       <CardContent>
         <div className="flex flex-wrap justify-center gap-8 py-2">
           {data.map(d => (
-            <GaugeDonut key={d.group} item={d} />
+            <GaugeDonut
+              key={d.group}
+              item={d}
+              onClick={transactions ? () => handleGroupClick(d) : undefined}
+            />
           ))}
         </div>
         <div className="mt-6 flex items-center justify-center gap-6 text-xs text-muted-foreground">
@@ -186,6 +220,17 @@ export function BudgetGroupChart({ data }: Props) {
           </span>
         </div>
       </CardContent>
+
+      {drawerGroup && (
+        <TransactionDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          title={drawerGroup.group}
+          subtitle={`Anual: ${fmtDec(drawerGroup.annualBudget)}\u20AC | Gastado YTD: ${fmtDec(drawerGroup.spentYTD)}\u20AC`}
+          transactions={drawerTxns}
+          groupColor={getBudgetGroupColor(drawerGroup.group)}
+        />
+      )}
     </Card>
   );
 }
