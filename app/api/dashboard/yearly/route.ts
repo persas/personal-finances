@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { Transaction, BudgetLine, Profile, YearlyDashboardData, CategoryTotal } from '@/lib/types';
+import { SAVINGS_INVESTMENT_GROUPS } from '@/lib/categories';
 
 // GET /api/dashboard/yearly?profileId=diego&year=2026
 export async function GET(req: NextRequest) {
@@ -29,11 +30,16 @@ export async function GET(req: NextRequest) {
     profileId, year
   );
 
-  // KPIs
+  // KPIs — separate true expenses from savings/investments
   const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit');
   const income = transactions.filter(t => t.type === 'income');
 
-  const totalExpenses = expenses.reduce((sum, t) =>
+  const trueExpenses = expenses.filter(t => !SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
+  const savingsInvestmentTxs = expenses.filter(t => SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
+
+  const totalExpenses = trueExpenses.reduce((sum, t) =>
+    sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount)), 0);
+  const totalSavingsInvestments = savingsInvestmentTxs.reduce((sum, t) =>
     sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount)), 0);
   const totalIncome = income.reduce((sum, t) => sum + Number(t.amount), 0);
   const netSavings = totalIncome - totalExpenses;
@@ -42,17 +48,16 @@ export async function GET(req: NextRequest) {
   // Months with data
   const monthsWithData = new Set(transactions.map(t => t.month)).size;
 
-  // Monthly trend
+  // Monthly trend (expenses exclude savings/investments)
   const monthlyMap: Record<number, { income: number; expenses: number }> = {};
   for (let m = 1; m <= 12; m++) monthlyMap[m] = { income: 0, expenses: 0 };
 
   for (const tx of transactions) {
     if (tx.type === 'income') {
       monthlyMap[tx.month].income += Number(tx.amount);
-    } else if (tx.type === 'expense') {
-      monthlyMap[tx.month].expenses += Number(tx.amount);
-    } else if (tx.type === 'credit') {
-      monthlyMap[tx.month].expenses -= Number(tx.amount);
+    } else if ((tx.type === 'expense' || tx.type === 'credit') && !SAVINGS_INVESTMENT_GROUPS.has(tx.budget_group || '')) {
+      const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
+      monthlyMap[tx.month].expenses += amount;
     }
   }
 
@@ -126,9 +131,9 @@ export async function GET(req: NextRequest) {
     ...groups,
   }));
 
-  // Category breakdown YTD
+  // Category breakdown YTD (true expenses only, not savings/investments)
   const catMap: Record<string, { total: number; count: number }> = {};
-  for (const tx of expenses) {
+  for (const tx of trueExpenses) {
     const cat = tx.category || 'Uncategorized';
     const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
     if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
@@ -144,7 +149,7 @@ export async function GET(req: NextRequest) {
   const data: YearlyDashboardData = {
     profile: profiles[0],
     year,
-    kpis: { totalIncome, totalExpenses, netSavings, savingsRate, monthsWithData },
+    kpis: { totalIncome, totalExpenses, totalSavingsInvestments, netSavings, savingsRate, monthsWithData },
     monthlyTrend,
     annualBudgetBurn,
     budgetGroupSummary,

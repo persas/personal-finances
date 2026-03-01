@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, run, get } from '@/lib/db';
 import { analyzeMonth } from '@/lib/gemini';
+import { SAVINGS_INVESTMENT_GROUPS } from '@/lib/categories';
 import type {
   Transaction,
   BudgetLine,
@@ -29,7 +30,14 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
   const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit');
   const income = transactions.filter(t => t.type === 'income');
 
-  const totalExpenses = expenses.reduce((sum, t) => {
+  const trueExpenses = expenses.filter(t => !SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
+  const savingsInvestmentTxs = expenses.filter(t => SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
+
+  const totalExpenses = trueExpenses.reduce((sum, t) => {
+    return sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount));
+  }, 0);
+
+  const totalSavingsInvestments = savingsInvestmentTxs.reduce((sum, t) => {
     return sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount));
   }, 0);
 
@@ -77,7 +85,7 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
   });
 
   const catMap: Record<string, { total: number; count: number }> = {};
-  for (const tx of expenses) {
+  for (const tx of trueExpenses) {
     const cat = tx.category || 'Uncategorized';
     const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
     if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
@@ -94,7 +102,7 @@ function buildDashboardData(profileId: string, month: number, year: number): Das
     profile: profiles[0],
     month,
     year,
-    kpis: { totalIncome, totalExpenses, netSavings, savingsRate, dailyAvgSpend, transactionCount: transactions.length },
+    kpis: { totalIncome, totalExpenses, totalSavingsInvestments, netSavings, savingsRate, dailyAvgSpend, transactionCount: transactions.length },
     budgetComparison: { groups, lines },
     categoryBreakdown,
     transactions,

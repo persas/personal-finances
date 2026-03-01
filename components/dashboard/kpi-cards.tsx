@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, PiggyBank, Calendar } from 'lucide-react';
 interface KPIData {
   totalIncome: number;
   totalExpenses: number;
+  totalSavingsInvestments: number;
   netSavings: number;
   savingsRate: number;
   dailyAvgSpend: number;
@@ -37,15 +38,15 @@ export function KPICards({ data }: { data: KPIData }) {
       subtitle: `${data.transactionCount} transactions`,
     },
     {
-      label: 'Net Savings',
-      value: `${fmt(data.netSavings)}`,
+      label: 'Ahorro e Inversión',
+      value: `${fmt(data.totalSavingsInvestments)}`,
       icon: PiggyBank,
-      textColor: data.netSavings >= 0
-        ? 'text-emerald-600 dark:text-emerald-400'
-        : 'text-red-600 dark:text-red-400',
-      bgColor: data.netSavings >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10',
-      accentColor: data.netSavings >= 0 ? '#10b981' : '#ef4444',
-      subtitle: `Rate: ${data.savingsRate.toFixed(1)}%`,
+      textColor: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-500/10',
+      accentColor: '#10b981',
+      subtitle: data.totalIncome > 0
+        ? `${((data.totalSavingsInvestments / data.totalIncome) * 100).toFixed(1)}% del ingreso`
+        : '',
     },
     {
       label: 'Daily Avg Spend',

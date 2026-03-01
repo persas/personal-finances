@@ -18,20 +18,22 @@ const tooltipStyle = {
 interface Props {
   totalIncome: number;
   totalExpenses: number;
+  totalSavingsInvestments: number;
   netSavings: number;
 }
 
-export function IncomeVsExpenses({ totalIncome, totalExpenses, netSavings }: Props) {
+export function IncomeVsExpenses({ totalIncome, totalExpenses, totalSavingsInvestments, netSavings }: Props) {
   const data = [
-    { name: 'Income', value: totalIncome, fill: '#10b981' },
-    { name: 'Expenses', value: totalExpenses, fill: '#ef4444' },
-    { name: 'Savings', value: Math.max(netSavings, 0), fill: '#3b82f6' },
+    { name: 'Ingresos', value: totalIncome, fill: '#10b981' },
+    { name: 'Gastos', value: totalExpenses, fill: '#ef4444' },
+    { name: 'Ahorro e Inv.', value: totalSavingsInvestments, fill: '#22c55e' },
+    { name: 'Disponible', value: Math.max(netSavings - totalSavingsInvestments, 0), fill: '#3b82f6' },
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Income vs Expenses</CardTitle>
+        <CardTitle className="text-sm">Ingresos vs Gastos</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

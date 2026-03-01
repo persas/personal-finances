@@ -9,6 +9,7 @@ import type {
   BudgetLineSummary,
   CategoryTotal,
 } from '@/lib/types';
+import { SAVINGS_INVESTMENT_GROUPS } from '@/lib/categories';
 
 // GET /api/dashboard?profileId=diego&month=1&year=2026
 export async function GET(req: NextRequest) {
@@ -42,11 +43,18 @@ export async function GET(req: NextRequest) {
     profileId, year
   );
 
-  // Calculate KPIs
+  // Calculate KPIs — separate true expenses from savings/investments
   const expenses = transactions.filter(t => t.type === 'expense' || t.type === 'credit');
   const income = transactions.filter(t => t.type === 'income');
 
-  const totalExpenses = expenses.reduce((sum, t) => {
+  const trueExpenses = expenses.filter(t => !SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
+  const savingsInvestmentTxs = expenses.filter(t => SAVINGS_INVESTMENT_GROUPS.has(t.budget_group || ''));
+
+  const totalExpenses = trueExpenses.reduce((sum, t) => {
+    return sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount));
+  }, 0);
+
+  const totalSavingsInvestments = savingsInvestmentTxs.reduce((sum, t) => {
     return sum + (t.type === 'credit' ? -Number(t.amount) : Number(t.amount));
   }, 0);
 
@@ -101,9 +109,9 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  // Category breakdown
+  // Category breakdown (true expenses only, not savings/investments)
   const catMap: Record<string, { total: number; count: number }> = {};
-  for (const tx of expenses) {
+  for (const tx of trueExpenses) {
     const cat = tx.category || 'Uncategorized';
     const amount = tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount);
     if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
@@ -123,6 +131,7 @@ export async function GET(req: NextRequest) {
     kpis: {
       totalIncome,
       totalExpenses,
+      totalSavingsInvestments,
       netSavings,
       savingsRate,
       dailyAvgSpend,
