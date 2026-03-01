@@ -45,8 +45,8 @@ export function TransactionDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg">
-        <SheetHeader>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-hidden">
+        <SheetHeader className="shrink-0">
           <SheetTitle style={{ color: groupColor }}>{title}</SheetTitle>
           {subtitle && <SheetDescription>{subtitle}</SheetDescription>}
           <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -67,7 +67,7 @@ export function TransactionDrawer({
             </span>
           </div>
         </SheetHeader>
-        <ScrollArea className="flex-1 px-4 pb-4">
+        <ScrollArea className="flex-1 min-h-0 px-4 pb-4">
           <div className="space-y-1">
             {sorted.map(tx => {
               const isCreditTx = isCredit(tx);
