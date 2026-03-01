@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     await run(
       `INSERT INTO budget_lines (profile_id, budget_group, line_name, monthly_amount, annual_amount, is_annual, year)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      profile_id, budget_group, line_name, monthly, annual, is_annual || false, budgetYear
+      profile_id, budget_group, line_name, monthly, annual, is_annual ? 1 : 0, budgetYear
     );
 
     return NextResponse.json({ success: true });
@@ -65,7 +65,7 @@ export async function PUT(req: NextRequest) {
 
     if (monthly_amount !== undefined) { updates.push('monthly_amount = ?'); values.push(monthly_amount); }
     if (annual_amount !== undefined) { updates.push('annual_amount = ?'); values.push(annual_amount); }
-    if (is_annual !== undefined) { updates.push('is_annual = ?'); values.push(is_annual); }
+    if (is_annual !== undefined) { updates.push('is_annual = ?'); values.push(is_annual ? 1 : 0); }
     if (line_name !== undefined) { updates.push('line_name = ?'); values.push(line_name); }
     if (budget_group !== undefined) { updates.push('budget_group = ?'); values.push(budget_group); }
 
