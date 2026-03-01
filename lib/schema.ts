@@ -145,6 +145,7 @@ export function initSchema(db: Database.Database): void {
 
   seedProfiles(db);
   seedBudgets(db);
+  ensureGuiltFreeSubcategories(db);
 }
 
 function seedProfiles(db: Database.Database): void {
@@ -189,6 +190,13 @@ function seedBudgets(db: Database.Database): void {
     ['diego', 'Savings Goals', 'Emergency fund', 400, 4800, 0],
     // Diego — Guilt-Free
     ['diego', 'Guilt-Free', 'Guilt-Free Spending', 776.41, 9316.92, 0],
+    ['diego', 'Guilt-Free', 'GF: Transportation', 0, 0, 0],
+    ['diego', 'Guilt-Free', 'GF: Dining & Drinks', 0, 0, 0],
+    ['diego', 'Guilt-Free', 'GF: Entertainment', 0, 0, 0],
+    ['diego', 'Guilt-Free', 'GF: Shopping', 0, 0, 0],
+    ['diego', 'Guilt-Free', 'GF: Travel', 0, 0, 0],
+    ['diego', 'Guilt-Free', 'GF: Personal Care', 0, 0, 0],
+    ['diego', 'Guilt-Free', 'GF: Hobbies', 0, 0, 0],
     // Diego — Pre-Tax
     ['diego', 'Pre-Tax', 'Cuota Autónomos', 458.09, 5497.08, 0],
     // Casa
@@ -198,6 +206,13 @@ function seedBudgets(db: Database.Database): void {
     ['casa', 'Investments', 'Revolut Conjunta Ahorro', 300, 3600, 0],
     ['casa', 'Savings Goals', 'Vacations', 400, 4800, 0],
     ['casa', 'Guilt-Free', 'Guilt-Free Spending', 32.50, 390, 0],
+    ['casa', 'Guilt-Free', 'GF: Transportation', 0, 0, 0],
+    ['casa', 'Guilt-Free', 'GF: Dining & Drinks', 0, 0, 0],
+    ['casa', 'Guilt-Free', 'GF: Entertainment', 0, 0, 0],
+    ['casa', 'Guilt-Free', 'GF: Shopping', 0, 0, 0],
+    ['casa', 'Guilt-Free', 'GF: Travel', 0, 0, 0],
+    ['casa', 'Guilt-Free', 'GF: Personal Care', 0, 0, 0],
+    ['casa', 'Guilt-Free', 'GF: Hobbies', 0, 0, 0],
     // Marta (template from Diego)
     ['marta', 'Fixed Costs', 'Rent / Mortgage', 1000, 12000, 0],
     ['marta', 'Fixed Costs', 'Utilities', 30, 360, 0],
@@ -211,6 +226,13 @@ function seedBudgets(db: Database.Database): void {
     ['marta', 'Savings Goals', 'Gifts', 125, 1500, 0],
     ['marta', 'Savings Goals', 'Emergency fund', 300, 3600, 0],
     ['marta', 'Guilt-Free', 'Guilt-Free Spending', 500, 6000, 0],
+    ['marta', 'Guilt-Free', 'GF: Transportation', 0, 0, 0],
+    ['marta', 'Guilt-Free', 'GF: Dining & Drinks', 0, 0, 0],
+    ['marta', 'Guilt-Free', 'GF: Entertainment', 0, 0, 0],
+    ['marta', 'Guilt-Free', 'GF: Shopping', 0, 0, 0],
+    ['marta', 'Guilt-Free', 'GF: Travel', 0, 0, 0],
+    ['marta', 'Guilt-Free', 'GF: Personal Care', 0, 0, 0],
+    ['marta', 'Guilt-Free', 'GF: Hobbies', 0, 0, 0],
   ];
 
   const insertMany = db.transaction((items: typeof allBudgets) => {
@@ -220,4 +242,42 @@ function seedBudgets(db: Database.Database): void {
   });
 
   insertMany(allBudgets);
+}
+
+function ensureGuiltFreeSubcategories(db: Database.Database): void {
+  const subcategories = [
+    'GF: Transportation',
+    'GF: Dining & Drinks',
+    'GF: Entertainment',
+    'GF: Shopping',
+    'GF: Travel',
+    'GF: Personal Care',
+    'GF: Hobbies',
+  ];
+
+  const profiles = db.prepare('SELECT id FROM profiles').all() as { id: string }[];
+  const years = db.prepare('SELECT DISTINCT year FROM budget_lines').all() as { year: number }[];
+
+  const check = db.prepare(
+    'SELECT id FROM budget_lines WHERE profile_id = ? AND line_name = ? AND year = ?'
+  );
+  const insert = db.prepare(
+    `INSERT INTO budget_lines (profile_id, budget_group, line_name, monthly_amount, annual_amount, is_annual, year)
+     VALUES (?, 'Guilt-Free', ?, 0, 0, 0, ?)`
+  );
+
+  const migrate = db.transaction(() => {
+    for (const { id: profileId } of profiles) {
+      for (const { year } of years) {
+        for (const sub of subcategories) {
+          const existing = check.all(profileId, sub, year);
+          if (existing.length === 0) {
+            insert.run(profileId, sub, year);
+          }
+        }
+      }
+    }
+  });
+
+  migrate();
 }

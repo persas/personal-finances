@@ -36,7 +36,16 @@ Rules:
 - Amounts must ALWAYS be positive numbers. The "type" field indicates the direction.
 - Auto-detect the bank from CSV format/headers (BBVA, Revolut, AMEX, CaixaBank, ING, etc.)
 - IMPORTANT: There is no Bankinter account. If the CSV looks like it could be Bankinter, it is actually BBVA. Always use "BBVA" as the source, never "Bankinter".
-- Fuel/gasoline transactions over 25€ are for leisure road trips, NOT daily commuting. Categorize them as category "Fuel", budget_group "Guilt-Free", budget_line "Guilt-Free Spending". Only fuel transactions of 25€ or less should go to budget_group "Fixed Costs", budget_line "Transportation".
+- Fuel/gasoline transactions over 25€ are for leisure road trips, NOT daily commuting. Categorize them as category "Fuel", budget_group "Guilt-Free", budget_line "GF: Transportation". Only fuel transactions of 25€ or less should go to budget_group "Fixed Costs", budget_line "Transportation".
+- IMPORTANT: For Guilt-Free expenses, use these specific budget_lines for granularity:
+  - "GF: Transportation" — fuel for road trips (>25€), flights, car rentals, taxis/Uber for leisure, tolls on trips
+  - "GF: Dining & Drinks" — restaurants, bars, cafes, takeout, coffee shops (leisure meals/drinks)
+  - "GF: Entertainment" — movies, concerts, events, sports tickets, gaming, theme parks, streaming
+  - "GF: Shopping" — clothing, electronics, gadgets, home decor, personal items, online shopping
+  - "GF: Travel" — hotels, Airbnb, vacation packages, excursions, tours, travel insurance
+  - "GF: Personal Care" — haircuts, barber, spa, grooming, beauty products
+  - "GF: Hobbies" — sports equipment, books, courses, music gear, hobby supplies
+  - "Guilt-Free Spending" — only use this as a fallback if the expense doesn't fit any subcategory above
 - Skip header rows, metadata rows, summary rows — only include actual transactions
 - Parse dates correctly regardless of format (DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.)
 - Handle comma decimal separators (European format) and period decimal separators
