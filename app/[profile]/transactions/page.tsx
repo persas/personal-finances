@@ -31,9 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Download, Loader2, Search, Pencil, Check, X, Copy, Replace } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Download, Loader2, Search, Pencil, Check, X, Copy, Replace, Sparkles, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Transaction, BudgetLine } from '@/lib/types';
+import type { RecategorizeChange } from '@/lib/gemini';
 import { getCategoryColor, BUDGET_GROUPS, TRANSACTION_TYPES } from '@/lib/categories';
 
 function fmt(n: number): string {
@@ -82,6 +84,14 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
   const [selectedForDeletion, setSelectedForDeletion] = useState<Set<number>>(new Set());
   const [loadingDuplicates, setLoadingDuplicates] = useState(false);
   const [deletingDuplicates, setDeletingDuplicates] = useState(false);
+
+  // Recategorize dialog
+  const [showRecategorize, setShowRecategorize] = useState(false);
+  const [recatHint, setRecatHint] = useState('');
+  const [recatLoading, setRecatLoading] = useState(false);
+  const [recatChanges, setRecatChanges] = useState<RecategorizeChange[]>([]);
+  const [recatStep, setRecatStep] = useState<'hint' | 'review'>('hint');
+  const [recatApplying, setRecatApplying] = useState(false);
 
   const profileNames: Record<string, string> = { diego: 'Diego', marta: 'Marta', casa: 'Casa' };
 
@@ -308,6 +318,61 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
     }
   };
 
+  // Recategorize
+  const openRecategorize = () => {
+    setShowRecategorize(true);
+    setRecatHint('');
+    setRecatChanges([]);
+    setRecatStep('hint');
+  };
+
+  const analyzeRecategorize = async () => {
+    if (!recatHint.trim()) return;
+    setRecatLoading(true);
+    try {
+      const transactionIds = filtered.map(t => t.id);
+      const res = await fetch('/api/transactions/recategorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: profile, transactionIds, hint: recatHint }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setRecatChanges(data.changes || []);
+      setRecatStep('review');
+      if ((data.changes || []).length === 0) {
+        toast.info('No changes proposed by AI');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to analyze');
+    } finally {
+      setRecatLoading(false);
+    }
+  };
+
+  const applyRecategorize = async () => {
+    if (recatChanges.length === 0) return;
+    setRecatApplying(true);
+    try {
+      const res = await fetch('/api/transactions/recategorize', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ changes: recatChanges }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Recategorized ${data.updated} transactions`);
+      setShowRecategorize(false);
+      fetchTransactions();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to apply');
+    } finally {
+      setRecatApplying(false);
+    }
+  };
+
+  const getOriginalTransaction = (id: number) => transactions.find(t => t.id === id);
+
   // CSV Export
   const exportCSV = () => {
     const headers = ['Date', 'Source', 'Description', 'Category', 'Budget Group', 'Budget Line', 'Amount', 'Type', 'Notes'];
@@ -345,6 +410,10 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
                 <Button variant="outline" size="sm" onClick={openDuplicates}>
                   <Copy className="mr-2 h-4 w-4" />
                   Find Duplicates
+                </Button>
+                <Button variant="outline" size="sm" onClick={openRecategorize}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Recategorize
                 </Button>
                 <Button variant="outline" size="sm" onClick={openReplace}>
                   <Replace className="mr-2 h-4 w-4" />
@@ -642,6 +711,128 @@ export default function TransactionsPage({ params }: { params: Promise<{ profile
               {deletingDuplicates ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
               Delete {selectedForDeletion.size} Duplicates
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recategorize Dialog */}
+      <Dialog open={showRecategorize} onOpenChange={setShowRecategorize}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Recategorize with AI
+            </DialogTitle>
+            <DialogDescription>
+              {recatStep === 'hint'
+                ? `Describe how you want to recategorize the ${filtered.length} visible transactions.`
+                : `Review the proposed changes before applying.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {recatStep === 'hint' ? (
+            <div className="space-y-4">
+              <Textarea
+                value={recatHint}
+                onChange={e => setRecatHint(e.target.value)}
+                placeholder='e.g. "All transactions from Mercadona should be Groceries, not Shopping" or "Uber transactions under 15€ are commuting (Fixed Costs), not Guilt-Free"'
+                rows={3}
+              />
+              <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                Will analyze <strong className="text-foreground">{filtered.length}</strong> currently visible transactions using Gemini AI.
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recatChanges.length === 0 ? (
+                <div className="text-center p-8 text-muted-foreground">No changes proposed. Try a different hint.</div>
+              ) : (
+                <>
+                  <div className="rounded-lg bg-muted p-3 text-sm">
+                    <strong>{recatChanges.length}</strong> of {filtered.length} transactions will be recategorized.
+                  </div>
+                  <div className="max-h-[400px] overflow-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Budget Group</TableHead>
+                          <TableHead>Budget Line</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {recatChanges.map(change => {
+                          const orig = getOriginalTransaction(change.id);
+                          if (!orig) return null;
+                          return (
+                            <TableRow key={change.id}>
+                              <TableCell>
+                                <div className="text-sm">{orig.description}</div>
+                                <div className="text-xs text-muted-foreground">{orig.date} &middot; {fmt(Number(orig.amount))}€</div>
+                              </TableCell>
+                              <TableCell>
+                                {orig.category !== change.category ? (
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <span className="text-red-500 line-through">{orig.category}</span>
+                                    <ArrowRight className="h-3 w-3 shrink-0" />
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">{change.category}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">{orig.category}</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {orig.budget_group !== change.budget_group ? (
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <span className="text-red-500 line-through">{orig.budget_group}</span>
+                                    <ArrowRight className="h-3 w-3 shrink-0" />
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">{change.budget_group}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">{orig.budget_group}</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {orig.budget_line !== change.budget_line ? (
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <span className="text-red-500 line-through">{orig.budget_line}</span>
+                                    <ArrowRight className="h-3 w-3 shrink-0" />
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">{change.budget_line}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">{orig.budget_line}</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {recatStep === 'review' && recatChanges.length > 0 && (
+              <Button variant="outline" onClick={() => setRecatStep('hint')} className="mr-auto">
+                Back
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowRecategorize(false)}>Cancel</Button>
+            {recatStep === 'hint' ? (
+              <Button onClick={analyzeRecategorize} disabled={!recatHint.trim() || recatLoading}>
+                {recatLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                {recatLoading ? 'Analyzing...' : 'Analyze'}
+              </Button>
+            ) : recatChanges.length > 0 ? (
+              <Button onClick={applyRecategorize} disabled={recatApplying}>
+                {recatApplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                Apply {recatChanges.length} Changes
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
