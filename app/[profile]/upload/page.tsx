@@ -22,16 +22,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Upload, Loader2, Check, X, FileSpreadsheet, Sparkles } from 'lucide-react';
+import { Upload, Loader2, Check, X, FileSpreadsheet, Sparkles, AlertTriangle } from 'lucide-react';
 import type { ParsedTransaction } from '@/lib/types';
 import { BUDGET_GROUPS } from '@/lib/categories';
+import * as XLSX from 'xlsx';
 
 export default function UploadPage({ params }: { params: Promise<{ profile: string }> }) {
   const { profile } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const month = Number(searchParams.get('month')) || new Date().getMonth() + 1;
   const year = Number(searchParams.get('year')) || new Date().getFullYear();
 
   const [file, setFile] = useState<File | null>(null);
@@ -42,17 +50,40 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Duplicate detection state
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicates, setDuplicates] = useState<ParsedTransaction[]>([]);
+  const [nonDuplicates, setNonDuplicates] = useState<ParsedTransaction[]>([]);
+
   const handleFile = useCallback(async (f: File) => {
     setFile(f);
-    const text = await f.text();
-    setCsvText(text);
     setTransactions([]);
+    setError(null);
+
+    const isXlsx = f.name.endsWith('.xlsx') || f.name.endsWith('.xls');
+
+    if (isXlsx) {
+      try {
+        const buffer = await f.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const text = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
+        setCsvText(text);
+      } catch {
+        setError('Failed to read XLSX file. Make sure it is a valid spreadsheet.');
+        setCsvText('');
+      }
+    } else {
+      const text = await f.text();
+      setCsvText(text);
+    }
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
-    if (f && (f.name.endsWith('.csv') || f.type === 'text/csv')) {
+    if (f && (f.name.endsWith('.csv') || f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))) {
       handleFile(f);
     }
   }, [handleFile]);
@@ -66,18 +97,18 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
       const res = await fetch('/api/parse-csv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId: profile, csvText, month, year }),
+        body: JSON.stringify({ profileId: profile, csvText, year }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Server error: ${res.status}`);
       if (!data.transactions || data.transactions.length === 0) {
-        setError('Gemini returned 0 transactions. Check that the CSV contains valid bank statement data.');
+        setError('Gemini returned 0 transactions. Check that the file contains valid bank statement data.');
         return;
       }
       setTransactions(data.transactions);
       toast.success(`Parsed ${data.transactions.length} transactions`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to parse CSV';
+      const msg = err instanceof Error ? err.message : 'Failed to parse file';
       setError(msg);
       toast.error(msg);
     } finally {
@@ -89,13 +120,45 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
     if (!transactions.length) return;
     setSaving(true);
     try {
-      const source = transactions[0]?.source || 'Unknown';
+      // Check for duplicates first
+      const checkRes = await fetch('/api/transactions/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: profile, transactions }),
+      });
+      const checkData = await checkRes.json();
+
+      if (checkData.duplicates?.length > 0) {
+        setDuplicates(checkData.duplicates);
+        setNonDuplicates(checkData.newTransactions);
+        setDuplicateDialogOpen(true);
+        setSaving(false);
+        return;
+      }
+
+      // No duplicates — save all
+      await saveTransactions(transactions);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save');
+      setSaving(false);
+    }
+  };
+
+  const saveTransactions = async (txsToSave: ParsedTransaction[]) => {
+    if (!txsToSave.length) {
+      toast.error('No transactions to save');
+      setSaving(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const source = txsToSave[0]?.source || 'Unknown';
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           profileId: profile,
-          transactions,
+          transactions: txsToSave,
           filename: file?.name || 'upload.csv',
           source,
         }),
@@ -103,12 +166,22 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success(`Saved ${data.count} transactions`);
-      router.push(`/${profile}?month=${month}&year=${year}`);
+
+      // Determine month from first transaction for redirect
+      const firstDate = new Date(txsToSave[0].date);
+      const month = firstDate.getMonth() + 1;
+      router.push(`/${profile}?month=${month}&year=${firstDate.getFullYear()}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveWithoutDuplicates = () => {
+    setDuplicateDialogOpen(false);
+    setTransactions(nonDuplicates);
+    saveTransactions(nonDuplicates);
   };
 
   const updateTransaction = (idx: number, field: keyof ParsedTransaction, value: string) => {
@@ -129,8 +202,8 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
     <div className="flex flex-col">
       <Header
         title="Upload Statement"
-        subtitle={`${profileNames[profile] || profile} — Upload bank CSV for processing`}
-        showMonthPicker
+        subtitle={`${profileNames[profile] || profile} — Upload bank CSV or XLSX for processing`}
+        showYearPicker
       />
 
       <div className="p-6 lg:p-8 space-y-6">
@@ -139,10 +212,11 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5" />
-              CSV Upload
+              File Upload
             </CardTitle>
             <CardDescription>
-              Drop a bank statement CSV. Gemini will auto-detect the bank format, parse, and categorize.
+              Drop a bank statement (CSV or XLSX). Gemini will auto-detect the bank format, parse, and categorize.
+              The file can contain multiple months — dates are used to assign each transaction.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -153,14 +227,14 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
             >
               <Upload className="mb-4 h-10 w-10 text-muted-foreground" />
               <p className="mb-2 text-sm font-medium">
-                {file ? file.name : 'Drag & drop your CSV here'}
+                {file ? file.name : 'Drag & drop your CSV or XLSX here'}
               </p>
               <p className="mb-4 text-xs text-muted-foreground">
                 Supports BBVA, Revolut, AMEX, and any other bank format
               </p>
               <Input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 className="max-w-xs"
                 onChange={e => {
                   const f = e.target.files?.[0];
@@ -175,7 +249,7 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
                 <span className="text-sm text-muted-foreground">
                   {(file.size / 1024).toFixed(1)} KB
                 </span>
-                <Button onClick={handleProcess} disabled={loading} className="ml-auto">
+                <Button onClick={handleProcess} disabled={loading || !csvText} className="ml-auto">
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -341,6 +415,61 @@ export default function UploadPage({ params }: { params: Promise<{ profile: stri
           </Card>
         )}
       </div>
+
+      {/* Duplicate Warning Dialog */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Duplicate Transactions Detected
+            </DialogTitle>
+            <DialogDescription>
+              {duplicates.length} transaction{duplicates.length !== 1 ? 's' : ''} already exist in the database
+              and will be skipped. {nonDuplicates.length} new transaction{nonDuplicates.length !== 1 ? 's' : ''} will be saved.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[300px] overflow-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="w-[90px]">Amount</TableHead>
+                  <TableHead>Source</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {duplicates.map((tx, idx) => (
+                  <TableRow key={idx} className="text-muted-foreground">
+                    <TableCell className="font-mono text-xs">{tx.date}</TableCell>
+                    <TableCell className="text-sm truncate max-w-[250px]">{tx.description}</TableCell>
+                    <TableCell className="font-mono text-xs">{tx.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-xs">{tx.source}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateDialogOpen(false)}>
+              Cancel
+            </Button>
+            {nonDuplicates.length > 0 ? (
+              <Button onClick={handleSaveWithoutDuplicates}>
+                <Check className="mr-2 h-4 w-4" />
+                Save {nonDuplicates.length} New Transaction{nonDuplicates.length !== 1 ? 's' : ''}
+              </Button>
+            ) : (
+              <Button disabled>
+                All transactions are duplicates
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
