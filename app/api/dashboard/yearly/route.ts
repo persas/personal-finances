@@ -86,8 +86,7 @@ export async function GET(req: NextRequest) {
     groupMap[item.group].spent += item.spentYTD;
   }
 
-  const currentMonth = new Date().getMonth() + 1;
-  const expectedPace = (currentMonth / 12) * 100;
+  const expectedPace = (monthsWithData / 12) * 100;
 
   const budgetGroupSummary = Object.entries(groupMap).map(([group, gData]) => {
     const percentUsed = gData.budget > 0 ? (gData.spent / gData.budget) * 100 : 0;

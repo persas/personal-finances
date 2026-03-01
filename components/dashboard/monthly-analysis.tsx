@@ -46,12 +46,12 @@ export function MonthlyAnalysis({ profileId, month, year }: Props) {
         body: JSON.stringify({ profileId, month, year, userComments: comments || null }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to generate report');
+      if (!res.ok) throw new Error(data.error || 'No se pudo generar el informe');
       setReport(data.report);
       setShowForm(false);
       setComments('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+      setError(e instanceof Error ? e.message : 'Algo salió mal');
     } finally {
       setGenerating(false);
     }
@@ -69,12 +69,14 @@ export function MonthlyAnalysis({ profileId, month, year }: Props) {
 
   return (
     <Card className="relative overflow-hidden">
-      <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-violet-500" />
+      <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-violet-500 via-purple-500 to-fuchsia-500" />
       <CardHeader className="pl-7">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-violet-500" />
-            <CardTitle className="text-lg">Monthly Analysis</CardTitle>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
+              <Sparkles className="h-4.5 w-4.5 text-violet-500" />
+            </div>
+            <CardTitle className="text-lg">Análisis Mensual</CardTitle>
           </div>
           {report && !showForm && (
             <Button
@@ -84,7 +86,7 @@ export function MonthlyAnalysis({ profileId, month, year }: Props) {
               className="gap-1.5"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Re-analyze
+              Re-analizar
             </Button>
           )}
         </div>
@@ -97,12 +99,12 @@ export function MonthlyAnalysis({ profileId, month, year }: Props) {
             <div className="space-y-2">
               <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 <MessageSquareText className="h-3.5 w-3.5" />
-                Context for the analysis
-                <span className="font-normal">(optional)</span>
+                Contexto para el análisis
+                <span className="font-normal">(opcional)</span>
               </label>
               <textarea
                 className="flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-                placeholder="e.g. The washing machine broke so I had to buy a new one, holiday trip to Italy..."
+                placeholder="Ej: Se rompió la lavadora y tuve que comprar una nueva, viaje de vacaciones a Italia..."
                 value={comments}
                 onChange={e => setComments(e.target.value)}
                 disabled={generating}
@@ -122,18 +124,18 @@ export function MonthlyAnalysis({ profileId, month, year }: Props) {
                 {generating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Analyzing...
+                    Analizando...
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    Analyze Month
+                    Analizar Mes
                   </>
                 )}
               </Button>
               {report && (
                 <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>
-                  Cancel
+                  Cancelar
                 </Button>
               )}
             </div>
@@ -144,28 +146,28 @@ export function MonthlyAnalysis({ profileId, month, year }: Props) {
         {report && !showForm && (
           <div className="space-y-4">
             {report.user_comments && (
-              <div className="rounded-lg bg-muted/50 px-4 py-3">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Your context</p>
+              <div className="rounded-lg bg-violet-500/5 border border-violet-500/10 px-4 py-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Tu contexto</p>
                 <p className="text-sm">{report.user_comments}</p>
               </div>
             )}
 
             <div
-              className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-base prose-headings:font-semibold prose-p:text-sm prose-li:text-sm prose-p:leading-relaxed"
+              className="analysis-report prose prose-sm dark:prose-invert max-w-none prose-headings:text-base prose-headings:font-semibold prose-p:text-sm prose-li:text-sm prose-p:leading-relaxed"
               dangerouslySetInnerHTML={{ __html: markdownToHtml(report.report_text) }}
             />
 
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t">
               <Clock className="h-3 w-3" />
-              Generated {formatDate(report.created_at)}
+              Generado el {formatDate(report.created_at)}
             </div>
           </div>
         )}
 
-        {/* Empty state — no report, form not shown (shouldn't happen but safe) */}
+        {/* Empty state */}
         {!report && !showForm && (
           <p className="text-sm text-muted-foreground">
-            No analysis yet. Click above to generate one.
+            Aún no hay análisis. Haz clic arriba para generar uno.
           </p>
         )}
       </CardContent>
@@ -176,17 +178,63 @@ export function MonthlyAnalysis({ profileId, month, year }: Props) {
 function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr + 'Z');
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch {
     return dateStr;
   }
 }
 
+// Section styling map for the 4 analysis sections
+const sectionStyles: Record<string, { bg: string; border: string; icon: string }> = {
+  '📊': { bg: 'bg-blue-500/5', border: 'border-blue-500/15', icon: 'text-blue-500' },
+  '🔥': { bg: 'bg-orange-500/5', border: 'border-orange-500/15', icon: 'text-orange-500' },
+  '💡': { bg: 'bg-emerald-500/5', border: 'border-emerald-500/15', icon: 'text-emerald-500' },
+  '👀': { bg: 'bg-amber-500/5', border: 'border-amber-500/15', icon: 'text-amber-500' },
+};
+
+function getSectionStyle(headerText: string): { bg: string; border: string; icon: string } | null {
+  for (const [emoji, style] of Object.entries(sectionStyles)) {
+    if (headerText.includes(emoji)) return style;
+  }
+  return null;
+}
+
 // Minimal markdown → HTML converter (handles headers, bold, italic, lists, paragraphs)
+// Enhanced with section card styling for the 4 analysis sections
 function markdownToHtml(md: string): string {
+  // Split into sections by h3 headers
+  const sections = md.split(/(?=^### )/gm);
+
+  return sections.map(section => {
+    const trimmed = section.trim();
+    if (!trimmed) return '';
+
+    // Check if this section starts with a h3 header
+    const headerMatch = trimmed.match(/^### (.+)$/m);
+    if (headerMatch) {
+      const headerText = headerMatch[1];
+      const style = getSectionStyle(headerText);
+
+      const content = trimmed.replace(/^### .+$/m, '').trim();
+      const htmlContent = convertInlineMarkdown(content);
+
+      if (style) {
+        return `<div class="rounded-xl ${style.bg} border ${style.border} p-4 mb-4">
+          <h3 class="!mt-0 !mb-3">${headerText}</h3>
+          ${htmlContent}
+        </div>`;
+      }
+
+      return `<h3>${headerText}</h3>${htmlContent}`;
+    }
+
+    return convertInlineMarkdown(trimmed);
+  }).join('\n');
+}
+
+function convertInlineMarkdown(md: string): string {
   return md
-    // Headers
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    // Headers (h1, h2 → h3)
     .replace(/^## (.+)$/gm, '<h3>$1</h3>')
     .replace(/^# (.+)$/gm, '<h3>$1</h3>')
     // Bold + italic
@@ -201,10 +249,10 @@ function markdownToHtml(md: string): string {
     // Line breaks → paragraphs
     .split(/\n{2,}/)
     .map(block => {
-      const trimmed = block.trim();
-      if (!trimmed) return '';
-      if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol')) return trimmed;
-      return `<p>${trimmed.replace(/\n/g, '<br/>')}</p>`;
+      const t = block.trim();
+      if (!t) return '';
+      if (t.startsWith('<h') || t.startsWith('<ul') || t.startsWith('<ol') || t.startsWith('<div')) return t;
+      return `<p>${t.replace(/\n/g, '<br/>')}</p>`;
     })
     .join('\n');
 }
