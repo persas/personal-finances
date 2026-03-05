@@ -12,6 +12,7 @@ import {
   type FMPIncomeStatement, type FMPBalanceSheet, type FMPCashFlow,
   type FMPKeyMetric, type FMPRatio,
 } from './fmp';
+import { fetchSECFilings, type SECFiling } from './sec';
 
 function getAI() {
   const key = process.env.GEMINI_API_KEY;
@@ -44,6 +45,8 @@ interface ComprehensiveData {
   cashFlows: FMPCashFlow[] | null;
   keyMetrics: FMPKeyMetric[] | null;
   ratios: FMPRatio[] | null;
+  // SEC EDGAR filings
+  secFilings: SECFiling[] | null;
 }
 
 async function fetchComprehensiveData(rawTicker: string): Promise<ComprehensiveData> {
@@ -59,6 +62,7 @@ async function fetchComprehensiveData(rawTicker: string): Promise<ComprehensiveD
     profile, metrics, recommendations, priceTarget,
     earnings, candle, quote, peers,
     incomeStatements, balanceSheets, cashFlows, keyMetrics, ratios,
+    secFilings,
   ] = await Promise.all([
     // Finnhub calls
     fetchProfile(ticker),
@@ -75,14 +79,17 @@ async function fetchComprehensiveData(rawTicker: string): Promise<ComprehensiveD
     fetchCashFlows(ticker),
     fetchKeyMetrics(ticker),
     fetchRatios(ticker),
+    // SEC EDGAR filings
+    fetchSECFilings(ticker),
   ]);
 
-  console.log(`[research] Data fetched — profile: ${!!profile}, metrics: ${!!metrics}, FMP income: ${!!incomeStatements}`);
+  console.log(`[research] Data fetched — profile: ${!!profile}, metrics: ${!!metrics}, FMP income: ${!!incomeStatements}, SEC filings: ${secFilings?.length ?? 0}`);
 
   return {
     profile, metrics, recommendations, priceTarget,
     earnings, candle, quote, peers,
     incomeStatements, balanceSheets, cashFlows, keyMetrics, ratios,
+    secFilings,
   };
 }
 
@@ -225,6 +232,15 @@ function buildAnalysisContext(data: ComprehensiveData): string {
   if (data.peers && data.peers.length > 0) {
     parts.push(`--- PEERS ---`);
     parts.push(data.peers.slice(0, 10).join(', '));
+    parts.push('');
+  }
+
+  // SEC Filings
+  if (data.secFilings && data.secFilings.length > 0) {
+    parts.push('--- RECENT SEC FILINGS ---');
+    for (const filing of data.secFilings) {
+      parts.push(`  ${filing.date}: ${filing.type} — ${filing.description} (${filing.url})`);
+    }
     parts.push('');
   }
 
@@ -450,6 +466,7 @@ CRITICAL INSTRUCTIONS:
 - Your role is to INTERPRET the numbers, provide CONTEXT, and deliver INSIGHT.
 - Compare metrics to typical sector averages from your knowledge. This is where you add value.
 - The web research contains current news and events. Trust it over your training data for recent developments.
+- The financial data may include RECENT SEC FILINGS from EDGAR. Reference notable filings (10-K, 10-Q, 8-K) in your analysis when relevant — they provide important context on earnings, material events, and regulatory disclosures.
 
 LANGUAGE: Write ALL descriptive prose content in Spanish (Español). This includes descriptions, analyses, assessments, risk descriptions, case summaries, and the verdict summary. Keep technical field names, category labels (like "Strong Buy", "Network Effects", "high", "medium", "low"), and the sentiment value in English.${missingMetricsPrompt}
 
@@ -615,6 +632,13 @@ All string values should be plain prose paragraphs in Spanish. Do NOT use markdo
           : [],
         fairValueEstimate: str(parsed.thesis?.fairValueEstimate),
       },
+
+      secFilings: (comprehensiveData.secFilings ?? []).slice(0, 15).map(f => ({
+        type: f.type,
+        date: f.date,
+        description: f.description,
+        url: f.url,
+      })),
 
       chartData: buildChartData(comprehensiveData),
 
