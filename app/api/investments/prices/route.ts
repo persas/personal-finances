@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, run } from '@/lib/db';
-import { fetchStockPrices, fetchCryptoPrices } from '@/lib/prices';
+import { fetchStockPrices, fetchCryptoPrices, fetchFundPrices } from '@/lib/prices';
 import type { PortfolioAsset, AssetPrice } from '@/lib/types';
 
 // GET /api/investments/prices?assetId=1
@@ -86,6 +86,7 @@ async function handleAutoUpdate(body: { profileId: string }) {
 
   // Group by type
   const stockTickers: { id: number; ticker: string }[] = [];
+  const fundTickers: { id: number; ticker: string }[] = [];
   const cryptoAssets: { id: number; providerId: string }[] = [];
 
   for (const asset of assets) {
@@ -96,12 +97,14 @@ async function handleAutoUpdate(body: { profileId: string }) {
       } else {
         errors.push(`${asset.name}: No CoinGecko ID configured`);
       }
+    } else if (asset.asset_type === 'fund') {
+      fundTickers.push({ id: asset.id, ticker: asset.ticker });
     } else {
       stockTickers.push({ id: asset.id, ticker: asset.ticker });
     }
   }
 
-  // Fetch stock prices
+  // Fetch stock prices (Finnhub)
   if (stockTickers.length > 0) {
     const tickers = stockTickers.map(s => s.ticker);
     const prices = await fetchStockPrices(tickers);
@@ -120,7 +123,26 @@ async function handleAutoUpdate(body: { profileId: string }) {
     }
   }
 
-  // Fetch crypto prices
+  // Fetch fund prices (Yahoo Finance)
+  if (fundTickers.length > 0) {
+    const tickers = fundTickers.map(f => f.ticker);
+    const prices = await fetchFundPrices(tickers);
+    for (const { id, ticker } of fundTickers) {
+      const price = prices.get(ticker);
+      if (price != null) {
+        run(
+          `INSERT OR REPLACE INTO asset_prices (asset_id, price, date, source)
+           VALUES (?, ?, ?, 'yahoo')`,
+          id, price, today
+        );
+        updated++;
+      } else {
+        errors.push(`${ticker}: Price not available`);
+      }
+    }
+  }
+
+  // Fetch crypto prices (CoinGecko)
   if (cryptoAssets.length > 0) {
     const coinIds = cryptoAssets.map(c => c.providerId);
     const prices = await fetchCryptoPrices(coinIds);
