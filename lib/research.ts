@@ -278,12 +278,31 @@ function buildMetrics(data: ComprehensiveData): ResearchContent['metrics'] {
   // Convert to decimal (0-1) for consistent internal representation
   const pctToDec = (v: number | null): number | null => v != null ? v / 100 : null;
 
+  // FMP fallback: trailing EPS from income statements
+  const trailingEps = m('epsTTM', met)
+    ?? data.incomeStatements?.[0]?.epsDiluted
+    ?? null;
+
+  // FMP fallback: trailing P/E calculated from price / EPS
+  const trailingPE = m('peTTM', met)
+    ?? (trailingEps && trailingEps > 0 && price ? price / trailingEps : null);
+
+  // FMP fallback: revenue growth YoY from income statements
+  const revenueGrowthFinnhub = pctToDec(m('revenueGrowthQuarterlyYoy', met));
+  const revenueGrowth = revenueGrowthFinnhub ?? (() => {
+    const stmts = data.incomeStatements;
+    if (stmts && stmts.length >= 2 && stmts[1].revenue > 0) {
+      return (stmts[0].revenue - stmts[1].revenue) / stmts[1].revenue;
+    }
+    return null;
+  })();
+
   return {
     price,
     currency: data.profile?.currency ?? 'USD',
     marketCap,
     enterpriseValue,
-    trailingPE: m('peTTM', met),
+    trailingPE,
     forwardPE: m('forwardPE', met),
     pegRatio: m('pegTTM', met),
     priceToBook: m('pbQuarterly', met) ?? m('pbAnnual', met),
@@ -296,18 +315,18 @@ function buildMetrics(data: ComprehensiveData): ResearchContent['metrics'] {
     returnOnEquity: pctToDec(m('roeTTM', met)),
     returnOnAssets: pctToDec(m('roaTTM', met)),
     roic: latestKM?.returnOnInvestedCapital != null ? latestKM.returnOnInvestedCapital : pctToDec(m('roiTTM', met)),
-    revenueGrowth: pctToDec(m('revenueGrowthQuarterlyYoy', met)),
+    revenueGrowth,
     earningsGrowth: pctToDec(m('epsGrowthTTMYoy', met)),
-    trailingEps: m('epsTTM', met),
-    forwardEps: m('epsAnnual', met),
+    trailingEps,
+    forwardEps: m('epsAnnual', met) ?? data.incomeStatements?.[0]?.epsDiluted ?? null,
     totalCash: latestBS?.cashAndCashEquivalents ?? null,
     totalDebt: latestBS?.totalDebt ?? null,
     debtToEquity: m('longTermDebt/equityQuarterly', met) ?? (latestBS?.totalDebt != null && latestBS?.totalStockholdersEquity ? latestBS.totalDebt / latestBS.totalStockholdersEquity : null),
-    currentRatio: m('currentRatioQuarterly', met),
+    currentRatio: m('currentRatioQuarterly', met) ?? latestKM?.currentRatio ?? null,
     bookValue: m('bookValuePerShareQuarterly', met),
     operatingCashflow,
     freeCashflow,
-    fcfYield,
+    fcfYield: fcfYield ?? latestKM?.freeCashFlowYield ?? null,
     dividendYield: pctToDec(m('dividendYieldIndicatedAnnual', met)),
     beta: m('beta', met),
     week52High: m('52WeekHigh', met),
@@ -390,6 +409,27 @@ export async function researchStock(item: WatchlistItem): Promise<{
 
   const analysisContext = buildAnalysisContext(comprehensiveData);
 
+  // Build metrics from API data BEFORE AI call to detect gaps
+  const apiMetrics = buildMetrics(comprehensiveData);
+  const apiAnalystData = buildAnalystData(comprehensiveData);
+
+  // Detect missing KPI strip metrics
+  const missingKpis: { key: string; desc: string }[] = [];
+  if (apiMetrics.marketCap == null) missingKpis.push({ key: 'marketCap', desc: 'market capitalization in USD (raw number, e.g. 150000000000 for $150B)' });
+  if (apiMetrics.trailingPE == null) missingKpis.push({ key: 'trailingPE', desc: 'trailing P/E ratio (TTM)' });
+  if (apiMetrics.revenueGrowth == null) missingKpis.push({ key: 'revenueGrowth', desc: 'year-over-year revenue growth as a decimal (e.g. 0.15 for 15%)' });
+  if (apiMetrics.fcfYield == null) missingKpis.push({ key: 'fcfYield', desc: 'free cash flow yield as a decimal (e.g. 0.05 for 5%)' });
+  if (apiAnalystData.targetMeanPrice == null) missingKpis.push({ key: 'targetMeanPrice', desc: 'analyst consensus target price in USD' });
+  if (apiMetrics.trailingEps == null) missingKpis.push({ key: 'trailingEps', desc: 'trailing earnings per share (TTM)' });
+
+  const missingMetricsPrompt = missingKpis.length > 0
+    ? `\n\nIMPORTANT — MISSING METRICS: Our financial APIs could not retrieve the following key metrics. Search the web research data and your knowledge to find current, reliable values. Include a "resolvedMetrics" object in your JSON response with numeric values for any you can determine:\n${missingKpis.map(k => `- ${k.key}: ${k.desc}`).join('\n')}\nOnly include metrics you are confident about. Omit any you cannot determine reliably.`
+    : '';
+
+  if (missingKpis.length > 0) {
+    console.log(`[research] Missing KPI metrics for ${item.ticker}: ${missingKpis.map(k => k.key).join(', ')}`);
+  }
+
   console.log(`[research] Generating structured report for ${item.ticker}...`);
   console.log(`[research] Context length: ${analysisContext.length} chars`);
 
@@ -411,6 +451,8 @@ CRITICAL INSTRUCTIONS:
 - Compare metrics to typical sector averages from your knowledge. This is where you add value.
 - The web research contains current news and events. Trust it over your training data for recent developments.
 
+LANGUAGE: Write ALL descriptive prose content in Spanish (Español). This includes descriptions, analyses, assessments, risk descriptions, case summaries, and the verdict summary. Keep technical field names, category labels (like "Strong Buy", "Network Effects", "high", "medium", "low"), and the sentiment value in English.${missingMetricsPrompt}
+
 Return a JSON object with these exact fields:
 
 {
@@ -419,7 +461,7 @@ Return a JSON object with these exact fields:
     "moatType": "One or combine: Network Effects, Switching Costs, Brand Power, Cost Advantages, Regulatory/IP Barriers, None/Weak",
     "moatAnalysis": "1 paragraph analyzing the competitive moat",
     "competitiveLandscape": "1 paragraph on key competitors and market position",
-    "industryCyclePosition": "1 sentence: e.g., 'Mature growth phase with secular tailwinds from AI adoption'",
+    "industryCyclePosition": "1 sentence: e.g., 'Fase de crecimiento maduro con vientos de cola seculares por la adopción de IA'",
     "tamSamSom": "1 paragraph estimating Total Addressable Market, Serviceable Available Market, and current market share"
   },
   "financialAnalysis": {
@@ -450,11 +492,11 @@ Return a JSON object with these exact fields:
     "summary": "One paragraph synthesis of the entire thesis"
   },
   "sentiment": "Exactly one of: bullish, bearish, neutral, mixed",
-  "summary": "One-sentence summary including the current price"
+  "summary": "One-sentence summary including the current price"${missingKpis.length > 0 ? `,\n  "resolvedMetrics": { "metricKey": numericValue }` : ''}
 }
 
 Provide 3-5 specific risks in keyRisks. Each catalyst should be a concrete upcoming event.
-All string values should be plain prose paragraphs. Do NOT use markdown formatting.`;
+All string values should be plain prose paragraphs in Spanish. Do NOT use markdown formatting.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -473,6 +515,49 @@ All string values should be plain prose paragraphs. Do NOT use markdown formatti
     const parsed = JSON.parse(text);
     const str = (v: unknown): string =>
       typeof v === 'string' ? v : v ? JSON.stringify(v, null, 2) : '';
+
+    // Fill missing metrics from AI's resolvedMetrics
+    const aiEstimatedMetrics: string[] = [];
+    const rm = parsed.resolvedMetrics as Record<string, number | null | undefined> | undefined;
+    if (rm && missingKpis.length > 0) {
+      const num = (v: unknown): number | null => typeof v === 'number' && isFinite(v) ? v : null;
+      if (apiMetrics.marketCap == null && num(rm.marketCap) != null) { apiMetrics.marketCap = num(rm.marketCap)!; aiEstimatedMetrics.push('marketCap'); }
+      if (apiMetrics.trailingPE == null && num(rm.trailingPE) != null) { apiMetrics.trailingPE = num(rm.trailingPE)!; aiEstimatedMetrics.push('trailingPE'); }
+      if (apiMetrics.revenueGrowth == null && num(rm.revenueGrowth) != null) { apiMetrics.revenueGrowth = num(rm.revenueGrowth)!; aiEstimatedMetrics.push('revenueGrowth'); }
+      if (apiMetrics.fcfYield == null && num(rm.fcfYield) != null) { apiMetrics.fcfYield = num(rm.fcfYield)!; aiEstimatedMetrics.push('fcfYield'); }
+      if (apiAnalystData.targetMeanPrice == null && num(rm.targetMeanPrice) != null) { apiAnalystData.targetMeanPrice = num(rm.targetMeanPrice)!; aiEstimatedMetrics.push('targetMeanPrice'); }
+      if (apiMetrics.trailingEps == null && num(rm.trailingEps) != null) { apiMetrics.trailingEps = num(rm.trailingEps)!; aiEstimatedMetrics.push('trailingEps'); }
+
+      if (aiEstimatedMetrics.length > 0) {
+        console.log(`[research] AI resolved missing metrics for ${item.ticker}: ${aiEstimatedMetrics.join(', ')}`);
+      }
+    }
+
+    // Generate warnings for metrics still missing after all fallbacks
+    const dataWarnings: string[] = [];
+    const kpiLabels: Record<string, string> = {
+      marketCap: 'Capitalización de mercado',
+      trailingPE: 'P/E (TTM)',
+      revenueGrowth: 'Crecimiento de ingresos',
+      fcfYield: 'FCF Yield',
+      targetMeanPrice: 'Precio objetivo de analistas',
+      trailingEps: 'EPS (TTM)',
+    };
+    for (const { key } of missingKpis) {
+      const val = key === 'targetMeanPrice' ? apiAnalystData.targetMeanPrice : (apiMetrics as Record<string, unknown>)[key];
+      if (val == null) {
+        dataWarnings.push(`${kpiLabels[key] ?? key} no disponible — no se encontró en APIs ni en búsqueda web`);
+      }
+    }
+    if (dataWarnings.length > 0) {
+      console.warn(`[research] Data warnings for ${item.ticker}: ${dataWarnings.join('; ')}`);
+    }
+
+    // Also recalculate fcfYield if AI provided marketCap and we have FCF
+    if (apiMetrics.fcfYield == null && apiMetrics.freeCashflow != null && apiMetrics.marketCap != null && apiMetrics.marketCap > 0) {
+      apiMetrics.fcfYield = apiMetrics.freeCashflow / apiMetrics.marketCap;
+      if (!aiEstimatedMetrics.includes('fcfYield')) aiEstimatedMetrics.push('fcfYield');
+    }
 
     // Assemble the final ResearchContent by merging real API data + AI output
     const content: ResearchContent = {
@@ -493,7 +578,7 @@ All string values should be plain prose paragraphs. Do NOT use markdown formatti
         peers: (comprehensiveData.peers ?? []).slice(0, 8),
       },
 
-      metrics: buildMetrics(comprehensiveData),
+      metrics: apiMetrics,
       financialAnalysis: {
         valuationAssessment: str(parsed.financialAnalysis?.valuationAssessment),
         profitabilityAnalysis: str(parsed.financialAnalysis?.profitabilityAnalysis),
@@ -515,7 +600,7 @@ All string values should be plain prose paragraphs. Do NOT use markdown formatti
         esgConsiderations: str(parsed.qualitative?.esgConsiderations),
       },
 
-      analystData: buildAnalystData(comprehensiveData),
+      analystData: apiAnalystData,
 
       ownership: {
         insiderPercent: null, // Finnhub free tier — limited availability
@@ -543,6 +628,9 @@ All string values should be plain prose paragraphs. Do NOT use markdown formatti
         timeHorizon: str(parsed.verdict?.timeHorizon) || '12-18 months',
         summary: str(parsed.verdict?.summary),
       },
+
+      dataWarnings: dataWarnings.length > 0 ? dataWarnings : undefined,
+      aiEstimatedMetrics: aiEstimatedMetrics.length > 0 ? aiEstimatedMetrics : undefined,
     };
 
     return {
