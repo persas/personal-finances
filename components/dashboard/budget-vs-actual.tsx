@@ -132,7 +132,8 @@ export function BudgetVsActual({ groups, lines, transactions }: Props) {
             {(() => {
               let currentGroup = '';
               const rows: React.ReactNode[] = [];
-              for (const line of lines) {
+              const sorted = [...lines].sort((a, b) => a.group.localeCompare(b.group));
+              for (const line of sorted) {
                 if (line.group !== currentGroup) {
                   currentGroup = line.group;
                   const groupData = groups.find(g => g.group === line.group);
