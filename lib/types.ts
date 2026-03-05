@@ -390,6 +390,10 @@ export interface ResearchContent {
     timeHorizon: string;
     summary: string;
   };
+
+  // Data quality tracking
+  dataWarnings?: string[];
+  aiEstimatedMetrics?: string[];
 }
 
 export function isLegacyResearchContent(
