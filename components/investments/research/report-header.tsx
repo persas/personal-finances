@@ -1,7 +1,9 @@
 'use client';
 
+import { Download, Loader2 } from 'lucide-react';
 import { SentimentBadge } from '../sentiment-badge';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { ResearchContent, Sentiment } from '@/lib/types';
 
 interface Props {
@@ -11,6 +13,8 @@ interface Props {
   sentiment: Sentiment | null;
   summary: string | null;
   researchDate: string;
+  onExportPdf?: () => void;
+  isExporting?: boolean;
 }
 
 function fmtLarge(v: number | null): string {
@@ -21,7 +25,7 @@ function fmtLarge(v: number | null): string {
   return `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
-export function ReportHeader({ content, ticker, name, sentiment, summary, researchDate }: Props) {
+export function ReportHeader({ content, ticker, name, sentiment, summary, researchDate, onExportPdf, isExporting }: Props) {
   const { metrics, business } = content;
   const price = metrics.price;
   const w52h = metrics.week52High;
@@ -44,14 +48,33 @@ export function ReportHeader({ content, ticker, name, sentiment, summary, resear
             })}</span>
           </div>
         </div>
-        {price != null && (
-          <div className="text-right shrink-0">
-            <p className="text-3xl font-bold">${price.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground">
-              52W: ${w52l?.toFixed(2) ?? '—'} — ${w52h?.toFixed(2) ?? '—'}
-            </p>
-          </div>
-        )}
+        <div className="flex items-start gap-3 shrink-0">
+          {price != null && (
+            <div className="text-right">
+              <p className="text-3xl font-bold">${price.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">
+                52W: ${w52l?.toFixed(2) ?? '—'} — ${w52h?.toFixed(2) ?? '—'}
+              </p>
+            </div>
+          )}
+          {onExportPdf && (
+            <div className="pdf-hide">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onExportPdf}
+                disabled={isExporting}
+                title="Export PDF"
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
       {summary && (
         <p className="text-sm text-muted-foreground italic">{summary}</p>

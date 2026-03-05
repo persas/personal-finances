@@ -1,7 +1,10 @@
 'use client';
 
+import { useRef } from 'react';
 import { Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
+import { useExportPdf } from '@/lib/hooks/use-export-pdf';
 import { ReportHeader } from './report-header';
 import { PriceChart } from './price-chart';
 import { KpiStrip } from './kpi-strip';
@@ -27,6 +30,24 @@ interface Props {
 }
 
 export function ResearchReportView({ report, ticker, name }: Props) {
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const dateStr = report
+    ? new Date(report.research_date).toISOString().slice(0, 10)
+    : '';
+  const filename = `${ticker}_research_${dateStr}.pdf`;
+
+  const { exportPdf, isExporting } = useExportPdf(reportRef, { filename });
+
+  const handleExportPdf = async () => {
+    try {
+      await exportPdf();
+      toast.success('PDF exported');
+    } catch {
+      toast.error('Failed to export PDF');
+    }
+  };
+
   if (!report) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -60,7 +81,7 @@ export function ResearchReportView({ report, ticker, name }: Props) {
   const content = report.content as ResearchContent;
 
   return (
-    <div className="space-y-6 pb-8">
+    <div ref={reportRef} className="space-y-6 pb-8">
       {/* Header */}
       <ReportHeader
         content={content}
@@ -69,6 +90,8 @@ export function ResearchReportView({ report, ticker, name }: Props) {
         sentiment={report.sentiment}
         summary={report.summary}
         researchDate={report.research_date}
+        onExportPdf={handleExportPdf}
+        isExporting={isExporting}
       />
 
       {/* Price Chart */}
