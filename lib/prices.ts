@@ -22,6 +22,33 @@ export async function fetchStockPrices(
   return results;
 }
 
+export async function fetchFundPrices(
+  tickers: string[]
+): Promise<Map<string, number>> {
+  const results = new Map<string, number>();
+  for (const ticker of tickers) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=5d&interval=1d`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      if (!res.ok) {
+        console.error(`[yahoo-fund] ${ticker} returned ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      const price = meta?.regularMarketPrice ?? meta?.previousClose;
+      if (price != null && price > 0) {
+        results.set(ticker, price);
+      }
+    } catch (e) {
+      console.error(`[yahoo-fund] ${ticker} failed:`, e);
+    }
+  }
+  return results;
+}
+
 export async function fetchCryptoPrices(
   coinIds: string[]
 ): Promise<Map<string, number>> {
