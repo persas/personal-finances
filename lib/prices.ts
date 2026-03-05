@@ -22,24 +22,30 @@ export async function fetchStockPrices(
   return results;
 }
 
+async function fetchYahooFundPrice(symbol: string): Promise<number | null> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const meta = data?.chart?.result?.[0]?.meta;
+  const price = meta?.regularMarketPrice ?? meta?.previousClose;
+  return price != null && price > 0 ? price : null;
+}
+
 export async function fetchFundPrices(
   tickers: string[]
 ): Promise<Map<string, number>> {
   const results = new Map<string, number>();
   for (const ticker of tickers) {
     try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=5d&interval=1d`;
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      });
-      if (!res.ok) {
-        console.error(`[yahoo-fund] ${ticker} returned ${res.status}`);
-        continue;
+      // Try ticker as-is first, then with .F suffix (needed for Morningstar fund IDs)
+      let price = await fetchYahooFundPrice(ticker);
+      if (price == null && !ticker.includes('.')) {
+        price = await fetchYahooFundPrice(`${ticker}.F`);
       }
-      const data = await res.json();
-      const meta = data?.chart?.result?.[0]?.meta;
-      const price = meta?.regularMarketPrice ?? meta?.previousClose;
-      if (price != null && price > 0) {
+      if (price != null) {
         results.set(ticker, price);
       }
     } catch (e) {
