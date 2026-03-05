@@ -13,6 +13,7 @@ import { FinancialMetricsGrid } from './financial-metrics-grid';
 import { FinancialAnalysis } from './financial-analysis';
 import { FinancialCharts } from './financial-charts';
 import { AnalystConsensus } from './analyst-consensus';
+import { SECFilings } from './sec-filings';
 import { QualitativeSection } from './qualitative-section';
 import { BullBearThesis } from './bull-bear-thesis';
 import { VerdictCard } from './verdict-card';
@@ -117,6 +118,11 @@ export function ResearchReportView({ report, ticker, name }: Props) {
 
       {/* Financial Charts (revenue, margins, earnings) */}
       <FinancialCharts content={content} />
+
+      <Separator />
+
+      {/* SEC Filings */}
+      <SECFilings content={content} />
 
       <Separator />
 

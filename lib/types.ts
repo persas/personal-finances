@@ -362,6 +362,14 @@ export interface ResearchContent {
     fairValueEstimate: string;
   };
 
+  // SEC EDGAR filings
+  secFilings?: Array<{
+    type: string;
+    date: string;
+    description: string;
+    url: string;
+  }>;
+
   // Chart data — real API data for Recharts
   chartData: {
     priceHistory: Array<{ date: string; close: number }>;
